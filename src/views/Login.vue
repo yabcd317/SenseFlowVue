@@ -63,7 +63,7 @@ export default {
 
       try {
         // 调用后端登录接口 - 使用相对路径而不是绝对URL
-        const response = await fetch('/sense/login', {
+        const response = await fetch('/user/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

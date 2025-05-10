@@ -1,7 +1,8 @@
 <template>
   <div class="device-list-container">
-    <h4>设备列表 (多选)</h4>
-    <ul v-if="devices.length > 0">
+    <h4>设备列表</h4>
+    <p v-if="fetchError" class="error-message">{{ fetchError }}</p>
+    <ul v-if="devices.length > 0 && !fetchError">
       <li
         v-for="device in devices"
         :key="device.id"
@@ -13,7 +14,7 @@
           :id="'device-' + device.id"
           :value="device.id"
           v-model="selectedIds"
-          @click.stop   
+          @click.stop
           class="device-checkbox"
         />
         <label :for="'device-' + device.id" @click.stop class="device-label">
@@ -22,7 +23,7 @@
         </label>
       </li>
     </ul>
-    <p v-else>暂无设备</p>
+    <p v-if="devices.length === 0 && !fetchError">正在加载设备列表或暂无设备...</p>
     <!-- 可以添加一个按钮来确认选择 -->
     <!-- <button @click="confirmSelection">确认选择</button> -->
   </div>
@@ -38,19 +39,40 @@ export default {
   // 移除 props，因为不再接收选中状态
   emits: [], // 也不再需要 emits 'devices-selected' 给 Home
   setup() {
-    const devices = ref([
-      // 示例数据
-      { id: 1, name: '4G-土壤湿度-563', online: true },
-      { id: 2, name: '4G-气象站-607', online: true },
-      { id: 3, name: 'GNSS-旧址-测量站', online: false },
-      { id: 4, name: 'GNSS-大礼堂-测量', online: true },
-      { id: 5, name: 'GNSS-管理处-基准', online: false },
-      { id: 6, name: '办公厅-采集器-160', online: true }
-    ]);
+    const devices = ref([]); // 初始化为空数组，将从API获取
     const selectedIds = ref([]);
+    const fetchError = ref(null); // 用于存储获取设备列表时的错误信息
 
     const fetchDevices = async () => {
-      // ... 模拟 API 调用 ...
+      fetchError.value = null; // 重置错误信息
+      try {
+        const response = await fetch('/senser/deviceList'); // GET请求
+
+        if (!response.ok) {
+          // 处理网络层面的错误 (如 404, 500等)
+          throw new Error(`获取设备列表失败: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        if (result.code === 1) {
+          devices.value = result.data.map(device => ({
+            id: device.deviceName, // 使用 deviceName 作为唯一ID
+            name: device.deviceName,
+            online: device.status === 0 // 假设 status 0 表示在线, 1 表示离线
+          }));
+        } else {
+          // 处理API层面返回的错误信息
+          console.error('获取设备列表API错误:', result.msg);
+          fetchError.value = result.msg || '获取设备列表失败';
+          devices.value = []; // 清空设备列表或保持上一次成功获取的数据
+        }
+      } catch (error) {
+        // 处理fetch本身抛出的错误或上面throw的错误
+        console.error('获取设备列表时发生网络错误或解析错误:', error);
+        fetchError.value = error.message || '网络错误，无法加载设备列表';
+        devices.value = []; // 清空设备列表
+      }
     };
 
     onMounted(() => {
@@ -79,6 +101,7 @@ export default {
     return {
       devices,
       selectedIds,
+      fetchError,
       toggleSelection
     };
   }
@@ -98,6 +121,16 @@ export default {
   box-sizing: border-box;
   overflow-y: auto;
   z-index: 999;
+}
+
+.error-message {
+  color: #dc3545; /* 红色错误信息 */
+  padding: 10px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
 }
 
 h4 {
