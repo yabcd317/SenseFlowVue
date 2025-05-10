@@ -62,28 +62,53 @@ export default {
       this.loading = true;
 
       try {
-        // 调用后端登录接口
-        const response = await fetch('http://localhost:8080/login', {
+        // 调用后端登录接口 - 使用相对路径而不是绝对URL
+        const response = await fetch('/sense/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            username: this.loginForm.username,
-            password: this.loginForm.password
+            password: this.loginForm.password,
+            username: this.loginForm.username
           })
         });
 
-        const data = await response.json();
-
+        // 检查响应状态
         if (!response.ok) {
-          throw new Error(data.message || '登录失败，请检查用户名和密码');
+          throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
+        }
+
+        // 检查响应内容类型
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('服务器未返回JSON数据');
+        }
+
+        // 安全地解析JSON
+        let result;
+        try {
+          const text = await response.text();
+          if (!text) {
+            throw new Error('服务器返回空响应');
+          }
+          result = JSON.parse(text);
+        } catch (parseError) {
+          console.error('JSON解析错误:', parseError);
+          throw new Error('无法解析服务器响应: ' + parseError.message);
+        }
+
+        // 检查响应状态码
+        if (result.code !== 1) {
+          throw new Error(result.msg || '登录失败');
         }
 
         // 登录成功，保存token和用户信息
-        localStorage.setItem('token', data.token || 'demo-token');
-        localStorage.setItem('user', JSON.stringify(data.user || {
-          username: this.loginForm.username
+        const userData = result.data;
+        localStorage.setItem('token', userData.token);
+        localStorage.setItem('user', JSON.stringify({
+          id: userData.id,
+          username: userData.userName
         }));
         
         // 如果记住我，保存用户名
@@ -97,7 +122,7 @@ export default {
         this.$router.push('/');
       } catch (error) {
         console.error('登录错误:', error);
-        this.errorMessage = error.message || '登录失败，请稍后再试';
+        this.errorMessage = error.message;
       } finally {
         this.loading = false;
       }

@@ -76,8 +76,8 @@ const router = createRouter({
 // 路由守卫，检查用户是否已登录
 router.beforeEach((to, from, next) => {
   // 测试模式标志，设为true表示跳过登录验证
-  const isTestMode = true; // 测试模式
-
+  const isTestMode = false; // 将测试模式设置为 false
+  
   if (isTestMode) {
     // 测试模式下，自动放行所有路由
     // 模拟一个用户信息
