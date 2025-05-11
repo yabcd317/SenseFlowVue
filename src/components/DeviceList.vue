@@ -19,7 +19,7 @@
         />
         <label :for="'device-' + device.id" @click.stop class="device-label">
           <span :class="['status-dot', device.online ? 'online' : 'offline']"></span>
-          {{ device.name }}
+          {{ device.deviceName }}
         </label>
       </li>
     </ul>
@@ -57,8 +57,8 @@ export default {
 
         if (result.code === 1) {
           devices.value = result.data.map(device => ({
-            id: device.deviceName, // 使用 deviceName 作为唯一ID
-            name: device.deviceName,
+            id: device.id, // 使用后端返回的数字ID
+            deviceName: device.deviceName, // 保存原始设备名称，以便在需要时使用
             online: device.status === 0 // 假设 status 0 表示在线, 1 表示离线
           }));
         } else {

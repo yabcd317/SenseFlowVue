@@ -13,13 +13,31 @@
       @toggle-submenu="toggleSubmenu"
     />
 
-    <!-- 重新添加主内容区域 -->
+    <!-- 主内容区域 -->
     <div class="main-content-area">
-      <router-view :key="$route.fullPath"></router-view>
-      <!-- 首页的 <main class="content"> 仍然移除，除非需要 -->
+      <!-- 检查是否是首页路径，如果是，则显示特定布局 -->
+      <div v-if="$route.path === '/'" class="home-page-layout">
+        <!-- 最上面一行：4个组件 -->
+        <div class="home-row top-row">
+          <div class="home-component-placeholder">组件1</div>
+          <div class="home-component-placeholder">组件2</div>
+          <div class="home-component-placeholder">组件3</div>
+          <div class="home-component-placeholder">组件4</div>
+        </div>
+        <!-- 中间一行：3个组件 -->
+        <div class="home-row middle-row">
+          <div class="home-component-placeholder">组件5</div>
+          <div class="home-component-placeholder">组件6</div>
+          <div class="home-component-placeholder">组件7</div>
+        </div>
+        <!-- 下面一行：1个组件 -->
+        <div class="home-row bottom-row">
+          <div class="home-component-placeholder full-width-component">组件8</div>
+        </div>
+      </div>
+      <!-- 其他路由的视图 -->
+      <router-view v-else :key="$route.fullPath"></router-view>
     </div>
-
-    <!-- DeviceList 仍然移除，因为它将被包含在 RealTimeData.vue 中 -->
   </div>
 </template>
 
@@ -193,16 +211,66 @@ export default {
   width: 100%;
   min-height: 100vh;
   background-color: #f5f5f5;
-  padding-top: 70px;
+  padding-top: 70px; /* 为 TopBar 留出空间 */
   box-sizing: border-box;
 }
 
-/* 调整主内容区域容器样式 */
 .main-content-area {
-  margin-left: 200px;  /* 只保留左边距以避开 SideBar */
-  min-height: calc(100vh - 70px);
+  margin-left: 200px;  /* 为 SideBar 留出空间 */
+  min-height: calc(100vh - 70px); /* 减去 TopBar 的高度 */
   box-sizing: border-box;
-  /* padding: 20px; */ /* 移除内边距，让子组件控制 */
+  /* padding: 15px; */ /* 移除这里的 padding */
+  width: calc(100% - 200px); /* 确保 main-content-area 占据剩余宽度 */
+  position: relative; /* 可选，如果内部元素需要绝对定位 */
+}
+
+.home-page-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* 行之间的间距 */
+  width: 100%;
+  height: 100%;
+  padding: 15px; /* 将 padding 移到这里 */
+  box-sizing: border-box; /* 确保 padding 不会增加总宽高 */
+  overflow-y: auto; /* 如果内容超出则显示滚动条 */
+}
+
+.home-row {
+  display: flex;
+  gap: 15px; /* 组件之间的间距 - 减小 */
+}
+
+.top-row .home-component-placeholder {
+  flex: 1; /* 4个组件平分宽度 */
+  height: 120px; /* 示例高度 - 减小 */
+  background-color: #e9ecef;
+  border: 1px solid #ced4da;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.middle-row .home-component-placeholder {
+  flex: 1; /* 3个组件平分宽度 */
+  height: 250px; /* 示例高度 - 保持或按需调整 */
+  background-color: #dee2e6;
+  border: 1px solid #adb5bd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.bottom-row .home-component-placeholder.full-width-component {
+  flex: 1; /* 1个组件占据整行宽度 */
+  height: 120px; /* 示例高度 - 减小 */
+  background-color: #ced4da;
+  border: 1px solid #adb5bd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
 }
 
 /* .content { ... } */ /* 保持移除 */
