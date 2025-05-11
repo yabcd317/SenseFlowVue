@@ -26,9 +26,9 @@
         </div>
         <!-- 中间一行：3个组件 -->
         <div class="home-row middle-row">
-          <div class="home-component-placeholder">组件5</div>
-          <div class="home-component-placeholder">组件6</div>
-          <div class="home-component-placeholder">组件7</div>
+          <div class="home-component-placeholder middle-component-1">组件5</div>
+          <div class="home-component-placeholder middle-component-2">组件6</div>
+          <div class="home-component-placeholder middle-component-3">组件7</div>
         </div>
         <!-- 下面一行：1个组件 -->
         <div class="home-row bottom-row">
@@ -227,50 +227,71 @@ export default {
 .home-page-layout {
   display: flex;
   flex-direction: column;
-  gap: 15px; /* 行之间的间距 */
+  gap: 5px; /* 行之间的间距 */
   width: 100%;
-  height: 100%;
-  padding: 15px; /* 将 padding 移到这里 */
-  box-sizing: border-box; /* 确保 padding 不会增加总宽高 */
+  height: calc(100vh - 70px); /* 设置为固定高度，减去TopBar的高度 */
+  padding: 5px;
+  box-sizing: border-box;
   overflow-y: auto; /* 如果内容超出则显示滚动条 */
 }
 
 .home-row {
   display: flex;
-  gap: 15px; /* 组件之间的间距 - 减小 */
+  gap: 5px; /* 组件之间的间距 */
+  /* flex: 1; */ /* 移除或修改，具体分配由各行决定 */
 }
 
-.top-row .home-component-placeholder {
-  flex: 1; /* 4个组件平分宽度 */
-  height: 120px; /* 示例高度 - 减小 */
-  background-color: #e9ecef;
-  border: 1px solid #ced4da;
+.top-row {
+  /* flex: 1; */ /* 示例：如果所有行等高 */
+  flex-grow: 3; /* 修改：允许此行在垂直方向上增长 */
+  /* 可以选择性地添加 flex-basis 来建议初始大小，例如 flex-basis: 120px; */
+}
+
+.middle-row {
+  /* flex: 2; */ /* 示例：如果此行想更高 */
+  flex-grow: 14; /* 修改：使此行比其他行占据更多垂直空间 */
+  /* flex-basis: 250px; */
+}
+
+.bottom-row {
+  /* flex: 1; */
+  flex-grow: 5; /* 修改：允许此行在垂直方向上增长 */
+  /* flex-basis: 120px; */
+}
+
+.top-row .home-component-placeholder,
+.middle-row .home-component-placeholder,
+.bottom-row .home-component-placeholder.full-width-component {
+  flex: 1; /* 保持水平方向填充，对于middle-row的子组件，此处的flex-grow会被下面的特定规则覆盖 */
+  height: 100%; /* 修改：使其填充父行的高度 */
+  background-color: #e9ecef; /* 保持示例背景色 */
+  border: 1px solid #ced4da; /* 保持示例边框 */
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 4px;
 }
 
+/* 为不同行的占位符设置不同的背景色以便区分，如果需要的话 */
 .middle-row .home-component-placeholder {
-  flex: 1; /* 3个组件平分宽度 */
-  height: 250px; /* 示例高度 - 保持或按需调整 */
-  background-color: #dee2e6;
-  border: 1px solid #adb5bd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
+  background-color: #dee2e6; /* 通用背景色 */
+}
+
+/* 新增：为中间一行的组件设置特定的flex-grow比例 */
+.middle-row .middle-component-1 {
+  flex-grow: 10; /* 第一个组件占1份 */
+}
+
+.middle-row .middle-component-2 {
+  flex-grow: 20; /* 第二个组件占2份 (是第一个和第三个的两倍宽) */
+}
+
+.middle-row .middle-component-3 {
+  flex-grow: 20; /* 第三个组件占1份 */
 }
 
 .bottom-row .home-component-placeholder.full-width-component {
-  flex: 1; /* 1个组件占据整行宽度 */
-  height: 120px; /* 示例高度 - 减小 */
   background-color: #ced4da;
-  border: 1px solid #adb5bd;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
 }
 
 /* .content { ... } */ /* 保持移除 */
