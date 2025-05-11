@@ -363,6 +363,12 @@ export default {
   /* 保持内部垂直滚动 */
   min-width: 0;
   /* 防止内容过多时撑开布局 */
+
+  /* 隐藏滚动条 */
+  -ms-overflow-style: none;
+  /* IE 和 Edge 浏览器隐藏滚动条 */
+  scrollbar-width: none;
+  /* Firefox 浏览器隐藏滚动条 */
 }
 
 .device-list-area {

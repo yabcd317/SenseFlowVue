@@ -3,25 +3,28 @@
     <h4>设备列表</h4>
     <p v-if="fetchError" class="error-message">{{ fetchError }}</p>
     <ul v-if="devices.length > 0 && !fetchError">
-      <li
-        v-for="device in devices"
-        :key="device.id"
-        class="device-item"
-        @click="toggleSelection(device.id)"
-      >
-        <input
-          type="checkbox"
-          :id="'device-' + device.id"
-          :value="device.id"
-          v-model="selectedIds"
-          @click.stop
-          class="device-checkbox"
-        />
-        <label :for="'device-' + device.id" @click.stop class="device-label">
-          <span :class="['status-dot', device.online ? 'online' : 'offline']"></span>
-          {{ device.deviceName }}
-        </label>
-      </li>
+      <!-- 单选模式 -->
+      <template v-if="singleSelect">
+        <li v-for="device in devices" :key="device.id" class="device-item" @click="selectSingleDevice(device.id)">
+          <input type="radio" :id="'device-' + device.id" :value="device.id" v-model="selectedId" @click.stop
+            class="device-radio" />
+          <label :for="'device-' + device.id" @click.stop class="device-label">
+            <span :class="['status-dot', device.online ? 'online' : 'offline']"></span>
+            {{ device.deviceName }}
+          </label>
+        </li>
+      </template>
+      <!-- 多选模式 -->
+      <template v-else>
+        <li v-for="device in devices" :key="device.id" class="device-item" @click="toggleSelection(device.id)">
+          <input type="checkbox" :id="'device-' + device.id" :value="device.id" v-model="selectedIds" @click.stop
+            class="device-checkbox" />
+          <label :for="'device-' + device.id" @click.stop class="device-label">
+            <span :class="['status-dot', device.online ? 'online' : 'offline']"></span>
+            {{ device.deviceName }}
+          </label>
+        </li>
+      </template>
     </ul>
     <p v-if="devices.length === 0 && !fetchError">正在加载设备列表或暂无设备...</p>
     <!-- 可以添加一个按钮来确认选择 -->
@@ -36,11 +39,17 @@ import eventBus from '../eventBus'; // 导入事件总线
 
 export default {
   name: 'DeviceList',
-  // 移除 props，因为不再接收选中状态
-  emits: [], // 也不再需要 emits 'devices-selected' 给 Home
-  setup() {
+  props: {
+    singleSelect: {
+      type: Boolean,
+      default: false // 默认为多选模式
+    }
+  },
+  emits: [], // 不再需要 emits 'devices-selected' 给 Home
+  setup(props) {
     const devices = ref([]); // 初始化为空数组，将从API获取
-    const selectedIds = ref([]);
+    const selectedIds = ref([]); // 多选模式使用
+    const selectedId = ref(''); // 单选模式使用
     const fetchError = ref(null); // 用于存储获取设备列表时的错误信息
 
     const fetchDevices = async () => {
@@ -80,29 +89,48 @@ export default {
       // 如果需要根据传入的 prop 初始化选中状态，可以在这里处理
     });
 
-    // 点击列表项切换选中状态
+    // 点击列表项切换选中状态（多选模式）
     const toggleSelection = (deviceId) => {
-        const index = selectedIds.value.indexOf(deviceId);
-        if (index > -1) {
-            selectedIds.value.splice(index, 1);
-        } else {
-            selectedIds.value.push(deviceId);
-        }
-        // v-model 会自动更新 selectedIds，watch 会触发事件发送
+      const index = selectedIds.value.indexOf(deviceId);
+      if (index > -1) {
+        selectedIds.value.splice(index, 1);
+      } else {
+        selectedIds.value.push(deviceId);
+      }
+      // v-model 会自动更新 selectedIds，watch 会触发事件发送
     };
 
-    // 监听 selectedIds 的变化，并通过事件总线发送选中的设备对象数组
+    // 单选模式选择设备
+    const selectSingleDevice = (deviceId) => {
+      selectedId.value = deviceId;
+    };
+
+    // 监听 selectedIds 的变化（多选模式）
     watch(selectedIds, (newIds) => {
-      const selectedDevices = devices.value.filter(device => newIds.includes(device.id));
-      console.log('DeviceList emitting devices-updated:', selectedDevices);
-      eventBus.emit('devices-updated', selectedDevices); // 使用事件总线发送
+      if (!props.singleSelect) {
+        const selectedDevices = devices.value.filter(device => newIds.includes(device.id));
+        console.log('DeviceList emitting devices-updated (multi):', selectedDevices);
+        eventBus.emit('devices-updated', selectedDevices);
+      }
     }, { deep: true });
+
+    // 监听 selectedId 的变化（单选模式）
+    watch(selectedId, (newId) => {
+      if (props.singleSelect && newId) {
+        const selectedDevice = devices.value.find(device => device.id === newId);
+        const selectedDevices = selectedDevice ? [selectedDevice] : [];
+        console.log('DeviceList emitting devices-updated (single):', selectedDevices);
+        eventBus.emit('devices-updated', selectedDevices);
+      }
+    });
 
     return {
       devices,
       selectedIds,
+      selectedId,
       fetchError,
-      toggleSelection
+      toggleSelection,
+      selectSingleDevice
     };
   }
 }
@@ -110,27 +138,17 @@ export default {
 
 <style scoped>
 .device-list-container {
-  width: 250px;
-  height: calc(100vh - 70px);
-  position: fixed;
-  right: 0;
-  top: 70px;
   background-color: #f8f9fa;
   border-left: 1px solid #e9ecef;
-  padding: 15px;
   box-sizing: border-box;
-  overflow-y: auto;
-  z-index: 999;
-}
 
-.error-message {
-  color: #dc3545; /* 红色错误信息 */
-  padding: 10px;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  border-radius: 4px;
-  margin-bottom: 15px;
-  font-size: 14px;
+  /* 关键修改：确保组件不会撑大 */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  /* 防止整体溢出 */
 }
 
 h4 {
@@ -140,16 +158,38 @@ h4 {
   font-size: 16px;
   border-bottom: 1px solid #dee2e6;
   padding-bottom: 8px;
+  flex-shrink: 0;
+  /* 防止标题被压缩 */
+}
+
+.error-message {
+  flex-shrink: 0;
+  /* 防止错误消息被压缩 */
+  color: #dc3545;
+  /* 红色错误信息 */
+  padding: 10px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 14px;
 }
 
 ul {
   list-style: none;
   padding: 0;
   margin: 0;
+  flex: 1;
+  /* 让列表区域占据剩余空间 */
+  overflow-y: auto;
+  /* 确保列表内容过多时可以滚动 */
+  min-height: 0;
+  /* 关键：允许flex子项在必要时收缩 */
 }
 
 .device-item {
-  padding: 8px 5px; /* 调整内边距 */
+  padding: 8px 5px;
+  /* 调整内边距 */
   cursor: pointer;
   border-radius: 4px;
   margin-bottom: 5px;
@@ -165,8 +205,9 @@ ul {
 /* 移除之前的 .active 样式 */
 /* .device-item.active { ... } */
 
-.device-checkbox {
-  margin-right: 10px; /* 复选框和标签之间的距离 */
+.device-checkbox,
+.device-radio {
+  margin-right: 10px;
   cursor: pointer;
 }
 
@@ -174,7 +215,8 @@ ul {
   display: flex;
   align-items: center;
   cursor: pointer;
-  flex-grow: 1; /* 让标签占据剩余空间 */
+  flex-grow: 1;
+  /* 让标签占据剩余空间 */
   font-size: 14px;
   color: #343a40;
 }
@@ -196,6 +238,8 @@ ul {
 }
 
 p {
+  flex-shrink: 0;
+  /* 防止提示文本被压缩 */
   color: #6c757d;
   font-size: 14px;
 }
