@@ -7,42 +7,15 @@
         <p>{{ globalFetchError }}</p>
       </div>
       <div v-if="selectedDevices && selectedDevices.length > 0" class="devices-container">
-        <!-- 每个设备一个区块 -->
-        <div v-for="device in selectedDevices" :key="device.id" class="device-block">
-          <!-- 设备标题 -->
-          <div class="device-header">
-            <h3>{{ device.deviceName }}</h3>
-            <span :class="['status-indicator', deviceData[device.id]?.status === '在线' ? 'online' : 'offline']">
-              {{ deviceData[device.id]?.status || '未知' }}
-            </span>
-          </div>
-
-          <div v-if="loadingData[device.id]" class="loading-indicator">
-            <div class="loading-spinner"></div>
-            <p>加载中...</p>
-          </div>
-          <!-- 设备数据卡片横向排列 -->
-          <div v-else-if="deviceData[device.id] && deviceData[device.id].values" class="data-cards-row">
-            <div v-for="(value, key) in deviceData[device.id].values" :key="`${device.id}-${key}`" class="data-card"
-              @click="showDetailModal(device, key, value)">
-              <div :class="['card-icon', deviceData[device.id]?.status === '离线' ? 'card-icon-offline' : '']">
-                <i class="sensor-icon"></i>
-              </div>
-              <div class="card-content">
-                <div class="card-title-line">
-                  <h4 class="card-title">{{ key }}</h4>
-                  <p class="card-unit">{{ value.unit }}</p>
-                </div>
-                <p :class="['card-value', deviceData[device.id]?.status === '离线' ? 'card-value-offline' : '']">
-                  {{ formatValueDisplay(value.value) }}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div v-else class="no-data-message">
-            <p>暂无数据</p>
-          </div>
-        </div>
+        <!-- 使用封装的设备区块组件 -->
+        <DeviceBlock 
+          v-for="device in selectedDevices" 
+          :key="device.id"
+          :device="device"
+          :device-data="deviceData[device.id]"
+          :loading="loadingData[device.id]"
+          @card-click="showDetailModal"
+        />
       </div>
 
       <div v-else class="no-device-selected">
@@ -52,7 +25,7 @@
 
     <!-- 右侧设备列表区域 -->
     <div class="device-list-area">
-      <DeviceList /> <!-- 直接使用 DeviceList 组件 -->
+      <DeviceList :multi-select="true" />
     </div>
 
     <!-- 数据详情模态框 -->
@@ -87,14 +60,16 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue'; // 确保导入 watch
+import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue';
 import eventBus from '../../eventBus';
-import DeviceList from '../../components/DeviceList.vue'; // 导入 DeviceList
+import DeviceList from '../../components/DeviceList.vue';
+import DeviceBlock from '../../components/DeviceBlock.vue'; // 导入新组件
 
 export default {
   name: 'RealTimeData',
   components: {
-    DeviceList // 注册 DeviceList
+    DeviceList,
+    DeviceBlock // 注册新组件
   },
   setup() {
     // 本地状态存储选中的设备
@@ -400,7 +375,7 @@ h2 {
   flex-direction: column;
   gap: 30px;
   flex: 1;
-  /* 新增：使其在 data-display-area 内垂直方向上占据剩余空间 */
+  /* 新增/修改：当没有设备被选择时的提示信息样式 */
 }
 
 /* 设备区块 */
@@ -510,7 +485,7 @@ h2 {
 .sensor-icon {
   width: 24px;
   height: 24px;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2zm0 8h2v2h-2zm0 8h2v2h-2z"/></svg>');
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2zm0 8h2v2h-2zm0 8h2v2h-2zm0 8h2v2h-2z"/></svg>');
   background-repeat: no-repeat;
   background-position: center;
 }
@@ -743,9 +718,56 @@ h2 {
   color: #ff4d4f;
   border: 1px solid #ffccc7;
   padding: 10px 15px;
-  border-radius: 4px;
-  margin-bottom: 15px;
-  /* 与下方内容隔开 */
+  border-radius: 6px;
+  margin: 0 20px 20px;
+}
+
+/* 保留模态框相关样式 */
+.close-btn:hover {
+  color: #343a40;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detail-info p {
+  margin: 8px 0;
+  font-size: 15px;
+  color: #495057;
+  line-height: 1.6;
+}
+
+.detail-info p strong {
+  color: #343a40;
+  min-width: 80px;
+  /* 确保标签对齐 */
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.detail-chart {
+  border-top: 1px solid #e9ecef;
+  padding-top: 20px;
+  margin-top: 10px;
+}
+
+.chart-placeholder {
   text-align: center;
+  padding: 30px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  color: #6c757d;
+}
+
+.chart-placeholder p {
+  margin: 5px 0;
+}
+
+.placeholder-text {
+  font-size: 14px;
+  font-style: italic;
 }
 </style>

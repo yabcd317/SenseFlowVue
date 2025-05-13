@@ -3,62 +3,51 @@
     <h4>设备列表</h4>
     <p v-if="fetchError" class="error-message">{{ fetchError }}</p>
     <ul v-if="devices.length > 0 && !fetchError">
-      <!-- 单选模式 -->
-      <template v-if="singleSelect">
-        <li v-for="device in devices" :key="device.id" class="device-item" @click="selectSingleDevice(device.id)">
-          <input type="radio" :id="'device-' + device.id" :value="device.id" v-model="selectedId" @click.stop
-            class="device-radio" />
-          <label :for="'device-' + device.id" @click.stop class="device-label">
-            <span :class="['status-dot', device.online ? 'online' : 'offline']"></span>
-            {{ device.deviceName }}
-          </label>
-        </li>
-      </template>
-      <!-- 多选模式 -->
-      <template v-else>
-        <li v-for="device in devices" :key="device.id" class="device-item" @click="toggleSelection(device.id)">
-          <input type="checkbox" :id="'device-' + device.id" :value="device.id" v-model="selectedIds" @click.stop
-            class="device-checkbox" />
-          <label :for="'device-' + device.id" @click.stop class="device-label">
-            <span :class="['status-dot', device.online ? 'online' : 'offline']"></span>
-            {{ device.deviceName }}
-          </label>
-        </li>
-      </template>
+      <li v-for="device in devices" :key="device.id" 
+          class="device-item" 
+          :class="{ 'selected': isDeviceSelected(device.id) }"
+          @click="toggleDevice(device.id)">
+        <span :class="['selection-indicator', multiSelect ? 'checkbox' : 'radio-button']">
+          <span class="indicator-inner" v-if="isDeviceSelected(device.id)"></span>
+        </span>
+        <div class="device-info">
+          <span :class="['status-dot', device.online ? 'online' : 'offline']"></span>
+          <span class="device-name">{{ device.deviceName }}</span>
+        </div>
+      </li>
     </ul>
     <p v-if="devices.length === 0 && !fetchError">正在加载设备列表或暂无设备...</p>
-    <!-- 可以添加一个按钮来确认选择 -->
-    <!-- <button @click="confirmSelection">确认选择</button> -->
   </div>
 </template>
 
 <script>
-// 导入事件总线 和 watch, ref, onMounted
-import { ref, onMounted, watch } from 'vue';
-import eventBus from '../eventBus'; // 导入事件总线
+import { ref, onMounted, computed } from 'vue';
+import eventBus from '../eventBus';
 
 export default {
   name: 'DeviceList',
   props: {
-    singleSelect: {
+    multiSelect: {
       type: Boolean,
-      default: false // 默认为多选模式
+      default: false // 默认为单选模式
     }
   },
-  emits: [], // 不再需要 emits 'devices-selected' 给 Home
   setup(props) {
-    const devices = ref([]); // 初始化为空数组，将从API获取
-    const selectedIds = ref([]); // 多选模式使用
-    const selectedId = ref(''); // 单选模式使用
-    const fetchError = ref(null); // 用于存储获取设备列表时的错误信息
+    const devices = ref([]);
+    const selectedDeviceIds = ref([]);
+    const fetchError = ref(null);
+
+    // 判断设备是否被选中
+    const isDeviceSelected = (deviceId) => {
+      return selectedDeviceIds.value.includes(deviceId);
+    };
 
     const fetchDevices = async () => {
-      fetchError.value = null; // 重置错误信息
+      fetchError.value = null;
       try {
-        const response = await fetch('/senser/deviceList'); // GET请求
+        const response = await fetch('/senser/deviceList');
 
         if (!response.ok) {
-          // 处理网络层面的错误 (如 404, 500等)
           throw new Error(`获取设备列表失败: ${response.status} ${response.statusText}`);
         }
 
@@ -66,71 +55,62 @@ export default {
 
         if (result.code === 1) {
           devices.value = result.data.map(device => ({
-            id: device.id, // 使用后端返回的数字ID
-            deviceName: device.deviceName, // 保存原始设备名称，以便在需要时使用
-            online: device.status === 0 // 假设 status 0 表示在线, 1 表示离线
+            id: device.id,
+            deviceName: device.deviceName,
+            online: device.status === 0
           }));
         } else {
-          // 处理API层面返回的错误信息
           console.error('获取设备列表API错误:', result.msg);
           fetchError.value = result.msg || '获取设备列表失败';
-          devices.value = []; // 清空设备列表或保持上一次成功获取的数据
+          devices.value = [];
         }
       } catch (error) {
-        // 处理fetch本身抛出的错误或上面throw的错误
         console.error('获取设备列表时发生网络错误或解析错误:', error);
         fetchError.value = error.message || '网络错误，无法加载设备列表';
-        devices.value = []; // 清空设备列表
+        devices.value = [];
       }
+    };
+
+    const toggleDevice = (deviceId) => {
+      if (props.multiSelect) {
+        // 多选模式：切换选中状态
+        const index = selectedDeviceIds.value.indexOf(deviceId);
+        if (index > -1) {
+          // 如果已选中，则取消选中
+          selectedDeviceIds.value.splice(index, 1);
+        } else {
+          // 如果未选中，则添加到选中列表
+          selectedDeviceIds.value.push(deviceId);
+        }
+      } else {
+        // 单选模式：直接替换选中项
+        // 如果点击已选中的设备，不做任何操作
+        if (selectedDeviceIds.value.length === 1 && selectedDeviceIds.value[0] === deviceId) return;
+        
+        // 设置选中的设备ID
+        selectedDeviceIds.value = [deviceId];
+      }
+      
+      // 获取选中的设备对象列表
+      const selectedDevices = devices.value.filter(device => 
+        selectedDeviceIds.value.includes(device.id)
+      );
+      
+      // 通过事件总线发送选中的设备
+      console.log('DeviceList emitting devices-updated:', selectedDevices);
+      eventBus.emit('devices-updated', selectedDevices);
     };
 
     onMounted(() => {
       fetchDevices();
-      // 如果需要根据传入的 prop 初始化选中状态，可以在这里处理
-    });
-
-    // 点击列表项切换选中状态（多选模式）
-    const toggleSelection = (deviceId) => {
-      const index = selectedIds.value.indexOf(deviceId);
-      if (index > -1) {
-        selectedIds.value.splice(index, 1);
-      } else {
-        selectedIds.value.push(deviceId);
-      }
-      // v-model 会自动更新 selectedIds，watch 会触发事件发送
-    };
-
-    // 单选模式选择设备
-    const selectSingleDevice = (deviceId) => {
-      selectedId.value = deviceId;
-    };
-
-    // 监听 selectedIds 的变化（多选模式）
-    watch(selectedIds, (newIds) => {
-      if (!props.singleSelect) {
-        const selectedDevices = devices.value.filter(device => newIds.includes(device.id));
-        console.log('DeviceList emitting devices-updated (multi):', selectedDevices);
-        eventBus.emit('devices-updated', selectedDevices);
-      }
-    }, { deep: true });
-
-    // 监听 selectedId 的变化（单选模式）
-    watch(selectedId, (newId) => {
-      if (props.singleSelect && newId) {
-        const selectedDevice = devices.value.find(device => device.id === newId);
-        const selectedDevices = selectedDevice ? [selectedDevice] : [];
-        console.log('DeviceList emitting devices-updated (single):', selectedDevices);
-        eventBus.emit('devices-updated', selectedDevices);
-      }
     });
 
     return {
       devices,
-      selectedIds,
-      selectedId,
+      selectedDeviceIds,
       fetchError,
-      toggleSelection,
-      selectSingleDevice
+      toggleDevice,
+      isDeviceSelected
     };
   }
 }
@@ -141,14 +121,11 @@ export default {
   background-color: #f8f9fa;
   border-left: 1px solid #e9ecef;
   box-sizing: border-box;
-
-  /* 关键修改：确保组件不会撑大 */
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: auto;
-  /* 防止整体溢出 */
 }
 
 h4 {
@@ -159,70 +136,82 @@ h4 {
   border-bottom: 1px solid #dee2e6;
   padding-bottom: 8px;
   flex-shrink: 0;
-  /* 防止标题被压缩 */
 }
 
 .error-message {
-  flex-shrink: 0;
-  /* 防止错误消息被压缩 */
   color: #dc3545;
-  /* 红色错误信息 */
   padding: 10px;
   background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
   border-radius: 4px;
-  margin-bottom: 15px;
-  font-size: 14px;
+  margin-bottom: 10px;
 }
 
 ul {
   list-style: none;
   padding: 0;
   margin: 0;
-  flex: 1;
-  /* 让列表区域占据剩余空间 */
   overflow-y: auto;
-  /* 确保列表内容过多时可以滚动 */
-  min-height: 0;
-  /* 关键：允许flex子项在必要时收缩 */
 }
 
 .device-item {
-  padding: 8px 5px;
-  /* 调整内边距 */
-  cursor: pointer;
-  border-radius: 4px;
-  margin-bottom: 5px;
   display: flex;
   align-items: center;
-  transition: background-color 0.2s ease-in-out;
+  padding: 10px 15px;
+  border-bottom: 1px solid #e9ecef;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .device-item:hover {
   background-color: #e9ecef;
 }
 
-/* 移除之前的 .active 样式 */
-/* .device-item.active { ... } */
-
-.device-checkbox,
-.device-radio {
-  margin-right: 10px;
-  cursor: pointer;
+.device-item.selected {
+  background-color: #e6f7ff;
 }
 
-.device-label {
+/* 修改选择指示器样式，支持单选和多选 */
+.selection-indicator {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #ced4da;
+  margin-right: 10px;
   display: flex;
   align-items: center;
-  cursor: pointer;
-  flex-grow: 1;
-  /* 让标签占据剩余空间 */
-  font-size: 14px;
-  color: #343a40;
+  justify-content: center;
+}
+
+.radio-button {
+  border-radius: 50%;
+}
+
+.checkbox {
+  border-radius: 3px;
+}
+
+.indicator-inner {
+  background-color: #1890ff;
+}
+
+.radio-button .indicator-inner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.checkbox .indicator-inner {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.device-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
 }
 
 .status-dot {
-  display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -230,17 +219,15 @@ ul {
 }
 
 .status-dot.online {
-  background-color: #198754;
+  background-color: #52c41a;
 }
 
 .status-dot.offline {
-  background-color: #dc3545;
+  background-color: #ff4d4f;
 }
 
-p {
-  flex-shrink: 0;
-  /* 防止提示文本被压缩 */
-  color: #6c757d;
+.device-name {
   font-size: 14px;
+  color: #495057;
 }
 </style>

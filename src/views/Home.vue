@@ -11,20 +11,59 @@
       <div v-if="$route.path === '/'" class="home-page-layout">
         <!-- 最上面一行：4个组件 -->
         <div class="home-row top-row">
-          <div class="home-component-placeholder">组件1</div>
-          <div class="home-component-placeholder">组件2</div>
-          <div class="home-component-placeholder">组件3</div>
-          <div class="home-component-placeholder">组件4</div>
+          <div class="status-card total-devices">
+            <div class="icon-container">
+              <i class="fas fa-cogs"></i>
+            </div>
+            <div class="card-content">
+              <div class="card-title">设备总数</div>
+              <div class="card-value">{{ deviceStats.total }}</div>
+            </div>
+          </div>
+          <div class="status-card online-devices">
+            <div class="icon-container">
+              <i class="fas fa-leaf"></i>
+            </div>
+            <div class="card-content">
+              <div class="card-title">在线设备</div>
+              <div class="card-value">{{ deviceStats.online }}</div>
+            </div>
+          </div>
+          <div class="status-card alarm-devices">
+            <div class="icon-container">
+              <i class="fas fa-bell"></i>
+            </div>
+            <div class="card-content">
+              <div class="card-title">报警设备</div>
+              <div class="card-value">{{ deviceStats.alarm }}</div>
+            </div>
+          </div>
+          <div class="status-card offline-devices">
+            <div class="icon-container">
+              <i class="fas fa-plug"></i>
+            </div>
+            <div class="card-content">
+              <div class="card-title">离线设备</div>
+              <div class="card-value">{{ deviceStats.offline }}</div>
+            </div>
+          </div>
         </div>
         <!-- 中间一行：3个组件 -->
         <div class="home-row middle-row">
-          <DeviceList class="home-component-placeholder middle-component-1" :singleSelect="true" />
+          <DeviceList class="home-component-placeholder middle-component-1" />
           <div class="home-component-placeholder middle-component-2">组件6</div>
-          <div class="home-component-placeholder middle-component-3">组件7</div>
+          <DeviceInfo class="home-component-placeholder middle-component-3" :deviceId="selectedDeviceId" />
         </div>
         <!-- 下面一行：1个组件 -->
         <div class="home-row bottom-row">
-          <div class="home-component-placeholder full-width-component">组件8</div>
+          <DeviceBlock 
+            v-if="selectedDeviceId && selectedDevice" 
+            class="home-component-placeholder full-width-component" 
+            :device="selectedDevice"
+            :device-data="{ status: selectedDevice.online ? '在线' : '离线', values: {} }"
+            :loading="false"
+          />
+          <div v-else class="home-component-placeholder full-width-component">请选择一个设备</div>
         </div>
       </div>
       <!-- 其他路由的视图 -->
@@ -36,16 +75,19 @@
 <script>
 import TopBar from '../components/TopBar.vue';
 import SideBar from '../components/SideBar.vue';
-import DeviceList from '../components/DeviceList.vue'; // 新增导入
-// 不再需要 provide, readonly, ref, computed 用于传递设备
-import { computed } from 'vue'; // computed 仍用于 isHomePage 等
+import DeviceList from '../components/DeviceList.vue'; // 修改引用名称
+import DeviceInfo from '../components/DeviceInfo.vue'; 
+import DeviceBlock from '../components/DeviceBlock.vue'; // 添加 DeviceBlock 组件引用
+import eventBus from '../eventBus';
 
 export default {
   name: 'HomePage',
   components: {
     TopBar,
     SideBar,
-    DeviceList, // 新增注册
+    DeviceList, // 修改组件注册名称
+    DeviceInfo,
+    DeviceBlock, // 注册 DeviceBlock 组件
   },
   data() {
     return {
@@ -76,8 +118,16 @@ export default {
       ],
       activeMenuIndex: 0,
       activeSubMenuIndex: -1,
-      // 移除 selectedDevices 状态，Home 不再管理全局选中设备
-      // selectedDevices: []
+      // 添加设备统计数据
+      deviceStats: {
+        total: 6,
+        online: 5,
+        alarm: 0,
+        offline: 1
+      },
+      // 添加选中的设备ID和设备信息
+      selectedDeviceId: null,
+      selectedDevice: null
     }
   },
   // 移除 provide 函数
@@ -178,6 +228,17 @@ export default {
         this.activeSubMenuIndex = -1;
         this.menuItems.forEach(item => item.expanded = false);
       }
+    },
+    // 添加获取设备统计数据的方法
+    fetchDeviceStats() {
+      // 这里可以添加从API获取设备统计数据的逻辑
+      // 暂时使用静态数据
+      this.deviceStats = {
+        total: 6,
+        online: 5,
+        alarm: 0,
+        offline: 1
+      };
     }
   },
   mounted() {
@@ -189,13 +250,37 @@ export default {
       this.user.username = '测试用户';
     }
     this.updateMenuState(this.$route.path);
+
+    // 获取设备统计数据
+    this.fetchDeviceStats();
+    
+    // 监听设备选择事件
+    eventBus.on('devices-updated', this.handleDevicesUpdated);
   },
-  watch: {
-    '$route'(to, from) {
-      this.updateMenuState(to.path);
+  
+  beforeUnmount() {
+    // 组件卸载前移除事件监听
+    eventBus.off('devices-updated', this.handleDevicesUpdated);
+  },
+
+  // 添加处理设备选择的方法
+  handleDeviceSelected(deviceId) {
+    this.selectedDeviceId = deviceId;
+  },
+  
+  // 处理设备更新事件
+  handleDevicesUpdated(devices) {
+    if (devices && devices.length > 0) {
+      this.selectedDeviceId = devices[0].id;
+      this.selectedDevice = devices[0];
+      console.log('Home: 已选择设备', this.selectedDevice);
+    } else {
+      this.selectedDeviceId = null;
+      this.selectedDevice = null;
     }
   }
 }
+
 </script>
 
 <style scoped>
@@ -203,17 +288,22 @@ export default {
   width: 100%;
   min-height: 100vh;
   background-color: #f5f5f5;
-  padding-top: 70px; /* 为 TopBar 留出空间 */
+  padding-top: 70px;
+  /* 为 TopBar 留出空间 */
   box-sizing: border-box;
 }
 
 .main-content-area {
-  margin-left: 200px; /* 为 SideBar 留出空间 */
-  height: calc(100vh - 70px); /* 固定高度，减去 TopBar 的高度 */
-  width: calc(100% - 200px); /* 确保宽度固定 */
+  margin-left: 200px;
+  /* 为 SideBar 留出空间 */
+  height: calc(100vh - 70px);
+  /* 固定高度，减去 TopBar 的高度 */
+  width: calc(100% - 200px);
+  /* 确保宽度固定 */
   box-sizing: border-box;
   position: relative;
-  overflow: hidden; /* 防止内容溢出 */
+  overflow: hidden;
+  /* 防止内容溢出 */
 }
 
 .home-page-layout {
@@ -221,38 +311,48 @@ export default {
   height: 100%;
   padding: 8px;
   box-sizing: border-box;
-  overflow: hidden; /* 禁止滚动 */
-  position: relative; /* 使用绝对定位的父容器 */
+  overflow: hidden;
+  /* 禁止滚动 */
+  position: relative;
+  /* 使用绝对定位的父容器 */
 }
 
 /* 使用固定高度和位置，不再使用flex */
 .home-row {
-  width: calc(100% - 16px); /* 减去左右padding */
+  width: calc(100% - 16px);
+  /* 减去左右padding */
   position: absolute;
   left: 8px;
-  display: flex; /* 仅在水平方向使用flex */
+  display: flex;
+  /* 仅在水平方向使用flex */
   gap: 8px;
 }
 
 .top-row {
   top: 8px;
-  height: 90px; /* 固定高度 */
+  height: 90px;
+  /* 固定高度 */
 }
 
 .middle-row {
-  top: 106px; /* 8px(上边距) + 90px(top-row高度) + 8px(间距) */
-  height: 380px; /* 固定高度 */
+  top: 106px;
+  /* 8px(上边距) + 90px(top-row高度) + 8px(间距) */
+  height: 380px;
+  /* 固定高度 */
 }
 
 .bottom-row {
-  top: 494px; /* 106px(middle-row顶部位置) + 380px(middle-row高度) + 8px(间距) */
-  height: 130px; /* 固定高度 */
+  top: 494px;
+  /* 106px(middle-row顶部位置) + 380px(middle-row高度) + 8px(间距) */
+  height: 130px;
+  /* 固定高度 */
 }
 
 .top-row .home-component-placeholder,
 .middle-row .home-component-placeholder,
 .bottom-row .home-component-placeholder.full-width-component {
-  height: 100%; /* 填充父容器高度 */
+  height: 100%;
+  /* 填充父容器高度 */
   background-color: #e9ecef;
   border: 1px solid #ced4da;
   display: flex;
@@ -269,25 +369,93 @@ export default {
 
 /* 使用固定宽度比例，不再使用flex-grow */
 .middle-row .middle-component-1 {
-  width: 20%; /* 固定宽度比例 */
-  overflow: hidden; /* 防止内容溢出 */
+  width: 20%;
+  /* 固定宽度比例 */
+  overflow: hidden;
+  /* 防止内容溢出 */
 }
 
 .middle-row .middle-component-2 {
-  width: 40%; /* 固定宽度比例 */
+  width: 40%;
+  /* 固定宽度比例 */
 }
 
 .middle-row .middle-component-3 {
-  width: 40%; /* 固定宽度比例 */
+  width: 40%;
+  /* 固定宽度比例 */
 }
 
 .bottom-row .home-component-placeholder.full-width-component {
-  width: 100%; /* 占据整行 */
+  width: 100%;
+  /* 占据整行 */
   background-color: #ced4da;
 }
 
-/* 顶部行的组件均分宽度 */
-.top-row .home-component-placeholder {
-  width: 25%; /* 4个组件均分 */
+
+
+/* 修改状态卡片样式，确保它们均匀分布 */
+.status-card {
+  width: 25%;
+  /* 4个组件均分 */
+  height: 100%;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  color: white;
+  padding: 0 15px;
+  box-sizing: border-box;
+  margin-right: 8px;
+  /* 添加右侧间距 */
+}
+
+/* 最后一个卡片不需要右侧间距 */
+.status-card:last-child {
+  margin-right: 0;
+}
+
+.icon-container {
+  font-size: 28px;
+  margin-right: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.card-title {
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+.card-value {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+/* 不同卡片的颜色 */
+.total-devices {
+  background-color: #1890ff;
+  /* 蓝色 */
+}
+
+.online-devices {
+  background-color: #52c41a;
+  /* 绿色 */
+}
+
+.alarm-devices {
+  background-color: #fa8c16;
+  /* 橙色 */
+}
+
+.offline-devices {
+  background-color: #434343;
+  /* 深灰色 */
 }
 </style>
