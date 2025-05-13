@@ -56,14 +56,7 @@
         </div>
         <!-- 下面一行：1个组件 -->
         <div class="home-row bottom-row">
-          <DeviceBlock 
-            v-if="selectedDeviceId && selectedDevice" 
-            class="home-component-placeholder full-width-component" 
-            :device="selectedDevice"
-            :device-data="{ status: selectedDevice.online ? '在线' : '离线', values: {} }"
-            :loading="false"
-          />
-          <div v-else class="home-component-placeholder full-width-component">请选择一个设备</div>
+         <div class="home-component-placeholder full-width-component">组件8</div>
         </div>
       </div>
       <!-- 其他路由的视图 -->
@@ -77,7 +70,6 @@ import TopBar from '../components/TopBar.vue';
 import SideBar from '../components/SideBar.vue';
 import DeviceList from '../components/DeviceList.vue'; // 修改引用名称
 import DeviceInfo from '../components/DeviceInfo.vue'; 
-import DeviceBlock from '../components/DeviceBlock.vue'; // 添加 DeviceBlock 组件引用
 import eventBus from '../eventBus';
 
 export default {
@@ -87,7 +79,6 @@ export default {
     SideBar,
     DeviceList, // 修改组件注册名称
     DeviceInfo,
-    DeviceBlock, // 注册 DeviceBlock 组件
   },
   data() {
     return {
@@ -125,9 +116,8 @@ export default {
         alarm: 0,
         offline: 1
       },
-      // 添加选中的设备ID和设备信息
-      selectedDeviceId: null,
-      selectedDevice: null
+      // 添加选中的设备ID
+      selectedDeviceId: null
     }
   },
   // 移除 provide 函数
@@ -256,6 +246,16 @@ export default {
     
     // 监听设备选择事件
     eventBus.on('devices-updated', this.handleDevicesUpdated);
+    
+    // 设置默认选择设备1
+    if (this.$route.path === '/') {
+      // 设置一个短暂的延时，确保设备列表组件已经加载完成
+      setTimeout(() => {
+        this.selectedDeviceId = 1;
+        // 通过事件总线发送一个设备选择事件，通知设备列表组件更新选中状态
+        eventBus.emit('select-device', 1);
+      }, 500);
+    }
   },
   
   beforeUnmount() {
@@ -272,11 +272,8 @@ export default {
   handleDevicesUpdated(devices) {
     if (devices && devices.length > 0) {
       this.selectedDeviceId = devices[0].id;
-      this.selectedDevice = devices[0];
-      console.log('Home: 已选择设备', this.selectedDevice);
     } else {
       this.selectedDeviceId = null;
-      this.selectedDevice = null;
     }
   }
 }
@@ -388,7 +385,7 @@ export default {
 .bottom-row .home-component-placeholder.full-width-component {
   width: 100%;
   /* 占据整行 */
-  background-color: #ced4da;
+  background-color: #DEE2E6;
 }
 
 

@@ -103,6 +103,11 @@ export default {
 
     onMounted(() => {
       fetchDevices();
+      
+      // 监听选择设备事件
+      eventBus.on('select-device', (deviceId) => {
+        toggleDevice(deviceId);
+      });
     });
 
     return {
