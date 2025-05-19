@@ -73,6 +73,7 @@ export default {
   gap: 15px;
   padding-bottom: 20px;
   border-bottom: 1px dashed #e0e0e0;
+  width: 100%; /* 新增：使DeviceBlock本身撑满其容器宽度 */
 }
 
 .device-block:last-child {
@@ -81,14 +82,19 @@ export default {
 
 /* 设备标题 */
 .device-header {
-  margin: 0 20px;
+  margin: 10px 20px; /* 外部间距 */
+  width: 98%; /* 设置宽度为100% */
+  box-sizing: border-box; /* 确保padding和border不影响总宽度 */
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   padding: 10px 15px;
   background-color: #f8f9fa;
   border-radius: 6px;
   border-left: 4px solid #3498db;
+  gap: 10px;
+  max-height: 50px;
+
 }
 
 .device-header h3 {
@@ -120,8 +126,9 @@ export default {
 .data-cards-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   padding: 0 20px;
+
 }
 
 .data-card {

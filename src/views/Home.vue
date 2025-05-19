@@ -60,7 +60,7 @@
             :device="{ id: selectedDeviceId, deviceName: deviceData.deviceName || '设备' }" :device-data="deviceData"
             :loading="loading" @card-click="handleCardClick" />
           <div v-else class="home-component-placeholder full-width-component no-device-message">
-            请从设备列表中选择一个设备
+            请稍候
           </div>
         </div>
       </div>
@@ -362,78 +362,140 @@ export default {
   height: 100%;
   padding: 8px;
   box-sizing: border-box;
-  overflow: hidden;
-  position: relative;
+  /* overflow: hidden; // 移除或注释掉，以允许内容滚动（如果需要） */
+  display: flex;
+  /* 改为flex布局 */
+  flex-direction: column;
+  /* 垂直排列 */
+  gap: 8px;
+  /* 行之间的间距 */
 }
 
 .home-row {
-  width: calc(100% - 16px);
-  position: absolute;
-  left: 8px;
+  width: 100%;
+  /* 宽度占满 */
+  /* position: absolute; // 移除绝对定位 */
+  /* left: 8px; // 移除 */
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
+  /* 防止行在空间不足时收缩 */
 }
 
 .top-row {
-  top: 8px;
+  /* top: 8px; // 移除绝对定位相关的top */
   height: 90px;
 }
 
 .middle-row {
-  top: 106px;
+  /* top: 106px; // 移除绝对定位相关的top */
   height: 380px;
 }
 
 .bottom-row {
-  top: 494px;
-  height: 130px;
+  /* top: 494px; // 移除绝对定位相关的top */
+  /* height: 130px; // 高度将由flex-grow决定 */
+  flex-grow: 1;
+  /* 占据剩余的垂直空间 */
+  /* display: flex; */
+  /* 使其子元素也能使用flex布局 */
 }
 
 .top-row .home-component-placeholder,
 .middle-row .home-component-placeholder,
 .bottom-row .home-component-placeholder.full-width-component {
   height: 100%;
-  background-color: #e9ecef;
+  background-color: white;
   border: 1px solid #ced4da;
   display: flex;
   align-items: center;
+  /* 恢复/保持 垂直居中 */
   justify-content: center;
+  /* 恢复/保持 水平居中 */
   border-radius: 4px;
   box-sizing: border-box;
 }
 
-.middle-row .home-component-placeholder {
-  background-color: #dee2e6;
-}
-
+/* 单独为 middle-row 的组件设置宽度，如果需要的话 */
 .middle-row .middle-component-1 {
-  width: 20%;
-  overflow: hidden;
+  flex: 2;
+  /* 示例：可以根据需要调整flex属性 */
 }
 
 .middle-row .middle-component-2 {
-  width: 40%;
+  flex: 5;
 }
 
 .middle-row .middle-component-3 {
-  width: 40%;
+  flex: 3;
 }
+
 
 .bottom-row .home-component-placeholder.full-width-component {
+  height: 100%;
+  /* background-color: #e9ecef; */
+  /* 可以移除，让DeviceBlock自己的背景生效 */
+  /* border: 1px solid #ced4da; */
+  /* 可以移除，让DeviceBlock自己的边框生效 */
+  display: flex;
+  align-items: flex-start;
+  /* 左上对齐：交叉轴起点 */
+  justify-content: flex-start;
+  /* 左上对齐：主轴起点 */
+  border-radius: 4px;
+  /* 可以保留或移除，取决于是否希望这个容器有圆角 */
+  box-sizing: border-box;
   width: 100%;
-  background-color: #DEE2E6;
+  flex-grow: 1;
+  padding: 0;
+  /* 确保DeviceBlock可以贴边 */
+  flex-shrink: 0;
+  /* 防止内容压缩 */
+  min-height: 100%;
+  /* 最小高度保持容器高度 */
+  overflow: hidden;
+  /* 隐藏溢出内容 */
 }
 
-.status-card {
-  width: 25%;
+.no-device-message {
+  display: flex;
+  align-items: flex-start;
+  /* 左上对齐：交叉轴起点 */
+  justify-content: flex-start;
+  /* 左上对齐：主轴起点 */
+  color: #6c757d;
+  font-size: 16px;
+  background-color: #ffffff;
+  /* 保持或根据设计调整 */
+  border-radius: 8px;
+  /* 保持或根据设计调整 */
+  /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); */
+  /* 可以考虑移除或调整，避免与DeviceBlock样式冲突 */
+  width: 100%;
   height: 100%;
-  border-radius: 4px;
+  padding: 15px;
+  /* 为文字提供一些内边距 */
+  box-sizing: border-box;
+}
+
+/* 可选：确保DeviceBlock组件本身没有外边距，如果它有的话 */
+.bottom-row .full-width-component>.device-block {
+  margin: 0;
+}
+
+/* 其他样式，如 .status-card 等保持不变 */
+.status-card {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 15px;
   display: flex;
   align-items: center;
-  color: white;
-  padding: 0 15px;
+  gap: 15px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  height: 100%;
+  /* 确保status-card填满top-row的高度 */
   box-sizing: border-box;
-  margin-right: 8px;
 }
 
 .status-card:last-child {
@@ -453,6 +515,7 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  color: white;
 }
 
 .card-title {
@@ -480,15 +543,14 @@ export default {
 .offline-devices {
   background-color: #434343;
 }
-
-.no-device-message {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6c757d;
-  font-size: 16px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+.data-cards-header {
+  /* 保持原有样式不做修改 */
+  flex-shrink: 0; /* 防止header被压缩 */
+}
+.full-width-component>* {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  /* 允许内容滚动 */ 
 }
 </style>
