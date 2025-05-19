@@ -40,8 +40,7 @@ const routes = [
       {
         path: 'data/history', // 相对路径，完整路径是 /data/history
         name: 'DataHistory',
-        // component: () => import('../views/data/HistoryData.vue'), // 替换为实际组件
-        component: () => import('../views/monitor/RealTimeData.vue'), // 临时用 RealTimeData 代替，你需要创建 HistoryData.vue
+        component: () => import('../views/datacenter/HistoricalData.vue'), // 确保此组件存在
         meta: { requiresAuth: true }
       },
       {

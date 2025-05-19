@@ -7,7 +7,6 @@
         <p>{{ globalFetchError }}</p>
       </div>
       <div v-if="selectedDevices && selectedDevices.length > 0" class="devices-container">
-        <!-- 使用封装的设备区块组件 -->
         <DeviceBlock 
           v-for="device in selectedDevices" 
           :key="device.id"
@@ -17,7 +16,6 @@
           @card-click="showDetailModal"
         />
       </div>
-
       <div v-else class="no-device-selected">
         <p>请从右侧设备列表中选择设备以查看实时数据。</p>
       </div>
@@ -40,14 +38,13 @@
             <p><strong>设备:</strong> {{ modalData.deviceName }}</p>
             <p><strong>监测项:</strong> {{ modalData.sensorName }}</p>
             <p><strong>当前值:</strong>
-              <span> <!-- Removed :class="getValueColorClass(modalData.value)" -->
+              <span>
                 {{ formatValueDisplay(modalData.value) }} {{ modalData.unit }}
               </span>
             </p>
             <p><strong>更新时间:</strong> {{ formatTimestamp(modalData.timestamp) }}</p>
           </div>
           <div class="detail-chart">
-            <!-- 这里可以添加图表组件，如ECharts -->
             <div class="chart-placeholder">
               <p>历史数据趋势图</p>
               <p class="placeholder-text">此处将显示数据趋势图表</p>
@@ -60,25 +57,23 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'; // Removed computed as it's not used
 import eventBus from '../../eventBus';
 import DeviceList from '../../components/DeviceList.vue';
-import DeviceBlock from '../../components/DeviceBlock.vue'; // 导入新组件
+import DeviceBlock from '../../components/DeviceBlock.vue';
 
 export default {
   name: 'RealTimeData',
   components: {
     DeviceList,
-    DeviceBlock // 注册新组件
+    DeviceBlock
   },
   setup() {
-    // 本地状态存储选中的设备
     const selectedDevices = ref([]);
-    const loadingData = reactive({}); // 用于跟踪每个设备的加载状态
-    const deviceData = reactive({});  // 用于存储每个设备的实时数据
-    const globalFetchError = ref(null); // 用于显示全局的API请求错误
+    const loadingData = reactive({});
+    const deviceData = reactive({});
+    const globalFetchError = ref(null);
 
-    // 模态框相关状态
     const showModal = ref(false);
     const modalData = reactive({
       deviceId: null,
@@ -90,16 +85,10 @@ export default {
       title: ''
     });
 
-    // 监听 showModal 状态，用于控制 body 滚动条
     watch(showModal, (isModalVisible) => {
-      if (isModalVisible) {
-        document.body.style.overflow = 'hidden';
-      } else {
-        document.body.style.overflow = '';
-      }
+      document.body.style.overflow = isModalVisible ? 'hidden' : '';
     });
 
-    // 显示详情模态框
     const showDetailModal = (device, sensorName, valueObj) => {
       console.log('[RealTimeData] showDetailModal called with device:', device, 'sensorName:', sensorName, 'valueObj:', valueObj);
       try {
@@ -133,33 +122,27 @@ export default {
       }
     };
 
-    // 关闭模态框
     const closeModal = () => {
       showModal.value = false;
     };
 
-    // 格式化数值显示
     const formatValueDisplay = (value) => {
       if (value === undefined || value === null) return 'N/A';
-      // 移除 .toFixed(1) 以显示原始数据
       return value;
     };
 
-    // 新的方法：为当前选中的设备批量获取数据
     const fetchDataForSelectedDevices = async (idsToFetch) => {
-      globalFetchError.value = null; // 重置全局错误
+      globalFetchError.value = null;
 
-      // 如果没有设备被选中，则清空数据并返回
       if (!idsToFetch || idsToFetch.length === 0) {
         Object.keys(deviceData).forEach(key => delete deviceData[key]);
         Object.keys(loadingData).forEach(key => delete loadingData[key]);
         return;
       }
 
-      // 为即将获取数据的设备设置加载状态
       idsToFetch.forEach(id => {
         loadingData[id] = true;
-        deviceData[id] = null; // 清除旧数据
+        deviceData[id] = null;
       });
 
       console.log(`[RealTimeData] 开始为设备 ${idsToFetch.join(', ')} 获取实时数据...`);
@@ -202,7 +185,6 @@ export default {
                     }
                   });
                 }
-
                 loadingData[deviceId] = false;
                 receivedDataIds.add(deviceId);
               } else {
@@ -230,11 +212,9 @@ export default {
       }
     };
 
-    // 处理从事件总线接收到的设备更新
     const handleDevicesUpdate = (devices) => {
       console.log('[RealTimeData] Received devices-updated event:', devices);
       selectedDevices.value = devices || [];
-
       const newSelectedIds = selectedDevices.value.map(d => d.id);
 
       Object.keys(deviceData).forEach(existingId => {
@@ -247,41 +227,45 @@ export default {
       fetchDataForSelectedDevices(newSelectedIds);
     };
 
-    // 组件挂载时开始监听事件
+    let refreshInterval = null; // Declare refreshInterval here
+
     onMounted(() => {
       console.log('[RealTimeData] Component mounted, listening for devices-updated event.');
       eventBus.on('devices-updated', handleDevicesUpdate);
 
-      // 设置定时刷新数据
-      const refreshInterval = setInterval(() => {
+      refreshInterval = setInterval(() => { // Assign to the declared variable
         const selectedIds = selectedDevices.value.map(d => d.id);
         if (selectedIds.length > 0) {
           fetchDataForSelectedDevices(selectedIds);
         }
-      }, 30000); // 每30秒刷新一次
+      }, 30000);
+    });
 
-      // 组件卸载时清除定时器
-      onUnmounted(() => {
+    onUnmounted(() => {
+      if (refreshInterval) { // Check if interval is set before clearing
         clearInterval(refreshInterval);
-        console.log('[RealTimeData] Component unmounted, removing devices-updated listener.');
-        eventBus.off('devices-updated', handleDevicesUpdate);
-        // 组件卸载时，确保恢复 body 的滚动状态
-        document.body.style.overflow = '';
-      });
+      }
+      console.log('[RealTimeData] Component unmounted, removing devices-updated listener.');
+      eventBus.off('devices-updated', handleDevicesUpdate);
+      document.body.style.overflow = '';
     });
 
     const formatTimestamp = (isoString) => {
       if (!isoString) return 'N/A';
-      try { return new Date(isoString).toLocaleString(); } catch (e) { return isoString; }
+      try {
+        return new Date(isoString).toLocaleString();
+      } catch (e) {
+        return isoString;
+      }
     };
 
+    // This function seems to be a duplicate or very similar to formatValueDisplay
+    // Considering removal or merging if formatValueDisplay serves the purpose
     const formatValue = (valueObj) => {
       if (valueObj !== undefined && valueObj !== null) {
         if (typeof valueObj === 'object') {
           const value = valueObj.value;
           const unit = valueObj.unit || '';
-
-          // 移除 .toFixed(1)
           return value + ' ' + unit;
         } else if (typeof valueObj === 'number') {
           return valueObj;
@@ -296,11 +280,11 @@ export default {
       deviceData,
       globalFetchError,
       formatTimestamp,
-      formatValue,
-      showModal, // Restored
-      modalData, // Restored
-      showDetailModal, // Restored
-      closeModal, // Restored
+      formatValue, // Kept for now, will analyze further
+      showModal,
+      modalData,
+      showDetailModal,
+      closeModal,
       formatValueDisplay
     };
   }
@@ -311,23 +295,16 @@ export default {
 .realtime-data-layout {
   display: flex;
   flex-direction: row;
-  /* 使子元素水平排列 */
   width: 100%;
-  /* 占据父容器的全部宽度 */
-  height: calc(100vh - 70px);
-  /* 固定高度，减去顶部导航栏的高度 */
+  height: calc(100vh - 70px); /* Assuming 70px is TopBar height */
   padding-left: 10px;
   box-sizing: border-box;
   background-color: #f0f2f5;
   gap: 20px;
-  /* 子元素之间的水平间距 */
-  /* overflow-y: auto; */
-  /* 子区域已有自己的滚动条，此处通常不需要 */
 }
 
 .data-display-area {
   flex: 1;
-  /* 占据剩余的水平空间 */
   background-color: #ffffff;
   padding: 5px;
   border-radius: 8px;
@@ -335,30 +312,24 @@ export default {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  /* 保持内部垂直滚动 */
   min-width: 0;
-  /* 防止内容过多时撑开布局 */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
 
-  /* 隐藏滚动条 */
-  -ms-overflow-style: none;
-  /* IE 和 Edge 浏览器隐藏滚动条 */
-  scrollbar-width: none;
-  /* Firefox 浏览器隐藏滚动条 */
+.data-display-area::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .device-list-area {
   width: 250px;
-  /* 固定宽度 */
   flex-shrink: 0;
-  /* 防止被压缩 */
   background-color: #ffffff;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   box-sizing: border-box;
-  /* 可以考虑添加 overflow-y: auto; 如果设备列表内容可能超出其高度 */
   overflow-y: auto;
   padding: 15px;
-  /* 为设备列表内部添加一些边距 */
 }
 
 h2 {
@@ -366,188 +337,44 @@ h2 {
   color: #2c3e50;
   border-bottom: 2px solid #3498db;
   padding-bottom: 10px;
-  flex-shrink: 0;
+  flex-shrink: 0; /* Prevent h2 from shrinking */
 }
 
-/* 设备容器 */
 .devices-container {
   display: flex;
   flex-direction: column;
   gap: 30px;
-  flex: 1;
-  /* 新增/修改：当没有设备被选择时的提示信息样式 */
+  flex: 1; /* Allow this container to grow and enable scrolling if DeviceBlocks overflow */
 }
 
-/* 设备区块 */
-.device-block {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  padding-bottom: 20px;
-  border-bottom: 1px dashed #e0e0e0;
-}
+/* Removed .device-block and .device-header as they are now part of DeviceBlock.vue */
+/* Removed .status-indicator, .status-indicator.online, .status-indicator.offline as they are in DeviceBlock.vue */
+/* Removed .data-cards-row and .data-card as they are in DeviceBlock.vue */
+/* Removed .card-icon, .card-icon-offline, .sensor-icon, .card-content as they are in DeviceBlock.vue */
+/* Removed .card-title, .card-value, .value-text, .value-unit as they are in DeviceBlock.vue */
 
-.device-block:last-child {
-  border-bottom: none;
-}
-
-/* 设备标题 */
-.device-header {
-  margin: 0 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 15px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  border-left: 4px solid #3498db;
-}
-
-.device-header h3 {
-  margin: 0;
-  color: #2c3e50;
-  font-size: 16px;
-}
-
-.status-indicator {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-indicator.online {
-  background-color: #e6f7ff;
-  color: #1890ff;
-  border: 1px solid #91d5ff;
-}
-
-.status-indicator.offline {
-  background-color: #fff2f0;
-  color: #ff4d4f;
-  border: 1px solid #ffccc7;
-}
-
-/* 数据卡片横向排列 */
-.data-cards-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 0 20px;
-}
-
-.data-card {
-  flex: 0 0 325px;
-  /* 增加卡片宽度，使其成为长方形 */
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 0;
-  /* 移除内边距，以便自定义布局 */
-  transition: all 0.3s ease;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  height: 80px;
-  /* 减小卡片高度 */
-  display: flex;
-  /* 使用flex布局 */
-  flex-direction: row;
-  /* 水平排列 */
-  align-items: center;
-  /* 垂直居中 */
-}
-
-.data-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-}
-
-.card-icon {
-  width: 60px;
-  /* 设置图标区域宽度 */
-  height: 100%;
-  /* 图标区域高度与卡片一致 */
-  background-color: #4CAF50;
-  /* 绿色背景，与图片一致 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  /* 防止图标区域被压缩 */
-}
-
-.card-icon-offline {
-  background-color: #ff4d4f;
-  /* 离线时的红色背景 */
-}
-
-.sensor-icon {
-  width: 24px;
-  height: 24px;
-  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2zm0 8h2v2h-2zm0 8h2v2h-2zm0 8h2v2h-2z"/></svg>');
-  background-repeat: no-repeat;
-  background-position: center;
-}
-
-.card-content {
-  display: flex;
-  flex-direction: column;
+.global-error-message {
+  background-color: #ffebee; /* Light red background */
+  color: #c62828; /* Dark red text */
   padding: 15px;
-  /* 为内容区域添加内边距 */
-  flex-grow: 1;
-  /* 内容区域占据剩余空间 */
-  justify-content: center;
-  /* 可选：如果内容较少，使其垂直居中 */
+  margin: 15px;
+  border-radius: 4px;
+  border: 1px solid #ef9a9a; /* Lighter red border */
+  text-align: center;
 }
 
-.card-title-line {
+.no-device-selected {
   display: flex;
-  align-items: baseline;
-  /* 文本基线对齐，视觉效果更好 */
-  gap: 5px;
-  /* 在标题和单位之间添加一些间距 */
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  text-align: center;
+  color: #757575;
+  font-size: 1.1em;
+  padding: 20px;
 }
 
-.card-title {
-  font-size: 16px;
-  color: #666;
-  margin: 0;
-  /* 移除原有边距，由 .card-title-line 的 gap 控制间距 */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 1;
-  /* 允许标题在空间不足时收缩 */
-}
-
-.card-value {
-  font-size: 24px;
-  font-weight: 600;
-  margin: 0;
-  line-height: 1.2;
-  color: #4CAF50;
-  /* 使用绿色，与图标背景一致 */
-}
-
-.card-value-offline {
-  color: #ff4d4f;
-  /* 离线时的红色文本 */
-}
-
-.card-unit {
-  font-size: 14px;
-  color: #999;
-  margin: 0;
-  /* 移除原有边距 */
-  white-space: nowrap;
-  /* 防止单位换行 */
-  flex-shrink: 0;
-  /* 不允许单位收缩 */
-  /* display: inline-block;  移除此行，因为父元素已是 flex 布局 */
-}
-
-/* 模态框样式 */
+/* Modal Styles */
 .data-detail-modal {
   position: fixed;
   top: 0;
@@ -555,63 +382,56 @@ h2 {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.6);
-  /* 半透明背景 */
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 1000;
-  /* 确保在顶层 */
-  padding: 20px;
-  /* 避免内容紧贴边缘 */
-  box-sizing: border-box;
+  backdrop-filter: blur(5px);
 }
 
 .modal-content {
   background-color: #fff;
-  padding: 25px 30px;
-  border-radius: 8px;
+  padding: 25px;
+  border-radius: 10px;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
   width: 90%;
   max-width: 600px;
-  /* 限制最大宽度 */
-  max-height: 90vh;
-  /* 限制最大高度 */
-  overflow-y: auto;
-  /* 内容过多时可滚动 */
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  max-height: 90vh;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #e0e0e0;
   padding-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .modal-header h3 {
   margin: 0;
-  font-size: 20px;
-  color: #343a40;
+  font-size: 1.4em;
+  color: #333;
 }
 
 .close-btn {
   background: none;
   border: none;
-  font-size: 28px;
+  font-size: 1.8em;
   cursor: pointer;
-  color: #6c757d;
+  color: #888;
   padding: 0;
   line-height: 1;
 }
 
 .close-btn:hover {
-  color: #343a40;
+  color: #333;
 }
 
 .modal-body {
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -619,155 +439,62 @@ h2 {
 
 .detail-info p {
   margin: 8px 0;
-  font-size: 15px;
-  color: #495057;
+  font-size: 1em;
+  color: #555;
   line-height: 1.6;
 }
 
 .detail-info p strong {
-  color: #343a40;
-  min-width: 80px;
-  /* 确保标签对齐 */
-  display: inline-block;
+  color: #333;
   margin-right: 8px;
 }
 
+.detail-info span {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
 .detail-chart {
-  border-top: 1px solid #e9ecef;
+  margin-top: 15px;
+  border-top: 1px solid #eee;
   padding-top: 20px;
-  margin-top: 10px;
 }
 
 .chart-placeholder {
   text-align: center;
   padding: 30px;
-  background-color: #f8f9fa;
+  background-color: #f9f9f9;
   border-radius: 6px;
-  color: #6c757d;
+  border: 1px dashed #ddd;
 }
 
 .chart-placeholder p {
   margin: 5px 0;
+  color: #777;
 }
 
-.placeholder-text {
-  font-size: 14px;
+.chart-placeholder .placeholder-text {
   font-style: italic;
+  font-size: 0.9em;
 }
 
-/* 新增/修改：当没有设备被选择时的提示信息样式 */
-.no-device-selected {
-  flex: 1;
-  /* 新增：使其在 data-display-area 内垂直方向上占据剩余空间 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 20px;
-  color: #6c757d;
-  font-size: 16px;
+/* Scrollbar styling for modal body if needed */
+.modal-body::-webkit-scrollbar {
+  width: 8px;
 }
 
-/* 加载指示器样式 */
-.loading-indicator {
-  flex: 1;
-  /* 确保加载指示器也能撑开空间，如果需要的话 */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  color: #6c757d;
+.modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
 }
 
-.loading-spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
-  border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  animation: spin 1s linear infinite;
-  margin-bottom: 10px;
+.modal-body::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
 }
 
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
 }
 
-/* 暂无数据消息样式 */
-.no-data-message {
-  flex: 1;
-  /* 确保暂无数据消息也能撑开空间 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  color: #6c757d;
-  text-align: center;
-}
-
-/* 全局错误消息样式 */
-.global-error-message {
-  background-color: #fff2f0;
-  color: #ff4d4f;
-  border: 1px solid #ffccc7;
-  padding: 10px 15px;
-  border-radius: 6px;
-  margin: 0 20px 20px;
-}
-
-/* 保留模态框相关样式 */
-.close-btn:hover {
-  color: #343a40;
-}
-
-.modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.detail-info p {
-  margin: 8px 0;
-  font-size: 15px;
-  color: #495057;
-  line-height: 1.6;
-}
-
-.detail-info p strong {
-  color: #343a40;
-  min-width: 80px;
-  /* 确保标签对齐 */
-  display: inline-block;
-  margin-right: 8px;
-}
-
-.detail-chart {
-  border-top: 1px solid #e9ecef;
-  padding-top: 20px;
-  margin-top: 10px;
-}
-
-.chart-placeholder {
-  text-align: center;
-  padding: 30px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  color: #6c757d;
-}
-
-.chart-placeholder p {
-  margin: 5px 0;
-}
-
-.placeholder-text {
-  font-size: 14px;
-  font-style: italic;
-}
 </style>
