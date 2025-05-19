@@ -247,11 +247,14 @@ export default {
       this.deviceData = null;
 
       try {
-        const response = await fetch(`/sense/device/data?deviceId=${deviceId}`, {
-          method: 'GET',
+        // 向后端发送请求获取设备数据
+        const response = await fetch(`/senser/deviceData`, { // 修改了URL
+          method: 'POST', // 修改了请求方法
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json' // 添加了Content-Type
+          },
+          body: JSON.stringify([deviceId]) // 修改了请求体
         });
 
         if (!response.ok) {
@@ -259,14 +262,37 @@ export default {
         }
 
         const result = await response.json();
-        if (result.code === 1) {
+        if (result.code === 1 && result.data && result.data.length > 0) {
+          const deviceRawData = result.data[0]; // 获取数组中的第一个设备数据
+
+          // 将 dataItems 转换为 DeviceBlock期望的 values 对象
+          const values = {};
+          if (deviceRawData.dataItems && Array.isArray(deviceRawData.dataItems)) {
+            deviceRawData.dataItems.forEach(item => {
+              values[item.functionName] = {
+                value: item.value,
+                unit: item.unit
+              };
+            });
+          }
+
           this.deviceData = {
-            deviceName: result.data.deviceName || `设备${deviceId}`,
-            status: result.data.online ? '在线' : '离线',
-            values: result.data.values || {}
+            // 注意：API响应中没有deviceName，这里我们先用deviceId构造一个
+            // 您可能需要根据实际情况调整deviceName的来源
+            deviceName: `设备${deviceRawData.deviceId || deviceId}`,
+            status: deviceRawData.status === 0 ? '在线' : '离线', // 假设 status 0 是在线
+            values: values // 转换后的传感器数据
           };
-        } else {
+        } else if (result.code !== 1) {
           throw new Error(result.msg || '获取设备数据失败');
+        } else {
+          // code为1但data为空或不存在的情况
+          console.warn('设备数据为空或格式不正确:', result);
+          this.deviceData = {
+            deviceName: `设备${deviceId}`,
+            status: '未知',
+            values: {}
+          };
         }
       } catch (error) {
         console.error('获取设备数据错误:', error);
