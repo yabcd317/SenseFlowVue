@@ -56,7 +56,12 @@
         </div>
         <!-- 下面一行：1个组件 -->
         <div class="home-row bottom-row">
-         <div class="home-component-placeholder full-width-component">组件8</div>
+          <DeviceBlock v-if="selectedDeviceId && deviceData" class="home-component-placeholder full-width-component"
+            :device="{ id: selectedDeviceId, deviceName: deviceData.deviceName || '设备' }" :device-data="deviceData"
+            :loading="loading" @card-click="handleCardClick" />
+          <div v-else class="home-component-placeholder full-width-component no-device-message">
+            请从设备列表中选择一个设备
+          </div>
         </div>
       </div>
       <!-- 其他路由的视图 -->
@@ -68,17 +73,19 @@
 <script>
 import TopBar from '../components/TopBar.vue';
 import SideBar from '../components/SideBar.vue';
-import DeviceList from '../components/DeviceList.vue'; // 修改引用名称
-import DeviceInfo from '../components/DeviceInfo.vue'; 
+import DeviceList from '../components/DeviceList.vue';
+import DeviceInfo from '../components/DeviceInfo.vue';
 import eventBus from '../eventBus';
+import DeviceBlock from '../components/DeviceBlock.vue';
 
 export default {
   name: 'HomePage',
   components: {
     TopBar,
     SideBar,
-    DeviceList, // 修改组件注册名称
+    DeviceList,
     DeviceInfo,
+    DeviceBlock,
   },
   data() {
     return {
@@ -109,23 +116,18 @@ export default {
       ],
       activeMenuIndex: 0,
       activeSubMenuIndex: -1,
-      // 添加设备统计数据
       deviceStats: {
         total: 6,
         online: 5,
         alarm: 0,
         offline: 1
       },
-      // 添加选中的设备ID
-      selectedDeviceId: null
+      selectedDeviceId: null,
+      deviceData: null,
+      loading: false,
     }
   },
-  // 移除 provide 函数
   computed: {
-    // 移除 showDeviceList 计算属性
-    // showDeviceList() { ... }
-
-    // 保留其他计算属性
     currentPageTitle() {
       const activeMenu = this.menuItems[this.activeMenuIndex];
       if (this.activeSubMenuIndex >= 0 && activeMenu?.children) {
@@ -142,7 +144,6 @@ export default {
       }
       return activeMenu?.name || '首页';
     },
-    // isHomePage 依赖的 .content 已移除，可以考虑是否保留此计算属性
     isHomePage() {
       return this.$route.path === '/';
     }
@@ -169,8 +170,7 @@ export default {
       }
 
       if (path && this.$route.path !== path) {
-        this.$router.push(path); // 恢复路由跳转
-        // console.warn(`路由跳转被阻止，因为 router-view 已移除。目标路径: ${path}`); // 移除警告
+        this.$router.push(path);
       } else if (!path && subIndex === -1) {
         this.toggleSubmenu(parentIndex);
       }
@@ -187,8 +187,6 @@ export default {
       });
       this.menuItems[index].expanded = !wasExpanded;
     },
-    // 更新事件处理器，现在 Home 不再存储选中状态
-    // handleGlobalDeviceSelected(devices) { ... },
     updateMenuState(currentPath) {
       let found = false;
       for (let i = 0; i < this.menuItems.length; i++) {
@@ -196,7 +194,7 @@ export default {
         if (item.path === currentPath && item.path === '/') {
           this.activeMenuIndex = i;
           this.activeSubMenuIndex = -1;
-          this.menuItems.forEach((menu, idx) => { menu.expanded = false; });
+          this.menuItems.forEach((menu) => { menu.expanded = false; });
           found = true;
           break;
         }
@@ -219,7 +217,6 @@ export default {
         this.menuItems.forEach(item => item.expanded = false);
       }
     },
-    // 添加获取设备统计数据的方法
     fetchDeviceStats() {
       // 这里可以添加从API获取设备统计数据的逻辑
       // 暂时使用静态数据
@@ -229,7 +226,63 @@ export default {
         alarm: 0,
         offline: 1
       };
-    }
+    },
+    handleDevicesUpdated(devices) {
+      if (devices && devices.length > 0) {
+        this.selectedDeviceId = devices[0].id;
+        this.fetchDeviceData(devices[0].id);
+      } else {
+        this.selectedDeviceId = null;
+        this.deviceData = null;
+      }
+    },
+    handleDeviceSelected(deviceId) {
+      this.selectedDeviceId = deviceId;
+      this.fetchDeviceData(deviceId);
+    },
+    async fetchDeviceData(deviceId) {
+      if (!deviceId) return;
+
+      this.loading = true;
+      this.deviceData = null;
+
+      try {
+        const response = await fetch(`/sense/device/data?deviceId=${deviceId}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`请求失败: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.code === 1) {
+          this.deviceData = {
+            deviceName: result.data.deviceName || `设备${deviceId}`,
+            status: result.data.online ? '在线' : '离线',
+            values: result.data.values || {}
+          };
+        } else {
+          throw new Error(result.msg || '获取设备数据失败');
+        }
+      } catch (error) {
+        console.error('获取设备数据错误:', error);
+        this.deviceData = {
+          deviceName: `设备${deviceId}`,
+          status: '未知',
+          values: {}
+        };
+      } finally {
+        this.loading = false;
+      }
+    },
+    handleCardClick(device, sensorName, valueObj) {
+      console.log('卡片点击:', device, sensorName, valueObj);
+      // 这里可以添加显示详细信息的逻辑，例如打开模态框等
+    },
   },
   mounted() {
     const userStr = localStorage.getItem('user');
@@ -240,44 +293,24 @@ export default {
       this.user.username = '测试用户';
     }
     this.updateMenuState(this.$route.path);
-
-    // 获取设备统计数据
     this.fetchDeviceStats();
-    
-    // 监听设备选择事件
+
+    eventBus.on('device-selected', this.handleDeviceSelected);
     eventBus.on('devices-updated', this.handleDevicesUpdated);
-    
-    // 设置默认选择设备1
+
     if (this.$route.path === '/') {
-      // 设置一个短暂的延时，确保设备列表组件已经加载完成
       setTimeout(() => {
         this.selectedDeviceId = 1;
-        // 通过事件总线发送一个设备选择事件，通知设备列表组件更新选中状态
         eventBus.emit('select-device', 1);
+        this.fetchDeviceData(1);
       }, 500);
     }
   },
-  
   beforeUnmount() {
-    // 组件卸载前移除事件监听
+    eventBus.off('device-selected', this.handleDeviceSelected);
     eventBus.off('devices-updated', this.handleDevicesUpdated);
   },
-
-  // 添加处理设备选择的方法
-  handleDeviceSelected(deviceId) {
-    this.selectedDeviceId = deviceId;
-  },
-  
-  // 处理设备更新事件
-  handleDevicesUpdated(devices) {
-    if (devices && devices.length > 0) {
-      this.selectedDeviceId = devices[0].id;
-    } else {
-      this.selectedDeviceId = null;
-    }
-  }
 }
-
 </script>
 
 <style scoped>
@@ -286,21 +319,16 @@ export default {
   min-height: 100vh;
   background-color: #f5f5f5;
   padding-top: 70px;
-  /* 为 TopBar 留出空间 */
   box-sizing: border-box;
 }
 
 .main-content-area {
   margin-left: 200px;
-  /* 为 SideBar 留出空间 */
   height: calc(100vh - 70px);
-  /* 固定高度，减去 TopBar 的高度 */
   width: calc(100% - 200px);
-  /* 确保宽度固定 */
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
-  /* 防止内容溢出 */
 }
 
 .home-page-layout {
@@ -309,47 +337,36 @@ export default {
   padding: 8px;
   box-sizing: border-box;
   overflow: hidden;
-  /* 禁止滚动 */
   position: relative;
-  /* 使用绝对定位的父容器 */
 }
 
-/* 使用固定高度和位置，不再使用flex */
 .home-row {
   width: calc(100% - 16px);
-  /* 减去左右padding */
   position: absolute;
   left: 8px;
   display: flex;
-  /* 仅在水平方向使用flex */
   gap: 8px;
 }
 
 .top-row {
   top: 8px;
   height: 90px;
-  /* 固定高度 */
 }
 
 .middle-row {
   top: 106px;
-  /* 8px(上边距) + 90px(top-row高度) + 8px(间距) */
   height: 380px;
-  /* 固定高度 */
 }
 
 .bottom-row {
   top: 494px;
-  /* 106px(middle-row顶部位置) + 380px(middle-row高度) + 8px(间距) */
   height: 130px;
-  /* 固定高度 */
 }
 
 .top-row .home-component-placeholder,
 .middle-row .home-component-placeholder,
 .bottom-row .home-component-placeholder.full-width-component {
   height: 100%;
-  /* 填充父容器高度 */
   background-color: #e9ecef;
   border: 1px solid #ced4da;
   display: flex;
@@ -359,41 +376,30 @@ export default {
   box-sizing: border-box;
 }
 
-/* 为不同行的占位符设置不同的背景色以便区分 */
 .middle-row .home-component-placeholder {
   background-color: #dee2e6;
 }
 
-/* 使用固定宽度比例，不再使用flex-grow */
 .middle-row .middle-component-1 {
   width: 20%;
-  /* 固定宽度比例 */
   overflow: hidden;
-  /* 防止内容溢出 */
 }
 
 .middle-row .middle-component-2 {
   width: 40%;
-  /* 固定宽度比例 */
 }
 
 .middle-row .middle-component-3 {
   width: 40%;
-  /* 固定宽度比例 */
 }
 
 .bottom-row .home-component-placeholder.full-width-component {
   width: 100%;
-  /* 占据整行 */
   background-color: #DEE2E6;
 }
 
-
-
-/* 修改状态卡片样式，确保它们均匀分布 */
 .status-card {
   width: 25%;
-  /* 4个组件均分 */
   height: 100%;
   border-radius: 4px;
   display: flex;
@@ -402,10 +408,8 @@ export default {
   padding: 0 15px;
   box-sizing: border-box;
   margin-right: 8px;
-  /* 添加右侧间距 */
 }
 
-/* 最后一个卡片不需要右侧间距 */
 .status-card:last-child {
   margin-right: 0;
 }
@@ -435,24 +439,30 @@ export default {
   font-weight: bold;
 }
 
-/* 不同卡片的颜色 */
 .total-devices {
   background-color: #1890ff;
-  /* 蓝色 */
 }
 
 .online-devices {
   background-color: #52c41a;
-  /* 绿色 */
 }
 
 .alarm-devices {
   background-color: #fa8c16;
-  /* 橙色 */
 }
 
 .offline-devices {
   background-color: #434343;
-  /* 深灰色 */
+}
+
+.no-device-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6c757d;
+  font-size: 16px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 </style>
