@@ -57,7 +57,7 @@
         <!-- 下面一行：1个组件 -->
         <div class="home-row bottom-row">
           <DeviceBlock v-if="selectedDeviceId && deviceData" class="home-component-placeholder full-width-component"
-            :device="{ id: selectedDeviceId, deviceName: deviceData.deviceName || '设备' }" :device-data="deviceData"
+            :device="{ id: selectedDeviceId, deviceName: deviceData.deviceName  }" :device-data="deviceData"
             :loading="loading" @card-click="handleCardClick" />
           <div v-else class="home-component-placeholder full-width-component no-device-message">
             请稍候
@@ -394,19 +394,21 @@ export default {
 
 .bottom-row {
   /* top: 494px; // 移除绝对定位相关的top */
-  /* height: 130px; // 高度将由flex-grow决定 */
-  flex-grow: 1;
+  /* height: 400px;  */
+  /* flex-grow: 1; */
   /* 占据剩余的垂直空间 */
   /* display: flex; */
+  height: calc(100% - 490px);
   /* 使其子元素也能使用flex布局 */
+
+  
 }
 
 .top-row .home-component-placeholder,
 .middle-row .home-component-placeholder,
 .bottom-row .home-component-placeholder.full-width-component {
-  height: 100%;
+
   background-color: white;
-  border: 1px solid #ced4da;
   display: flex;
   align-items: center;
   /* 恢复/保持 垂直居中 */
@@ -548,8 +550,8 @@ export default {
   flex-shrink: 0; /* 防止header被压缩 */
 }
 .full-width-component>* {
-  width: 100%;
-  height: 100%;
+  /* width: 100%; */
+  /* height: 100%; */
   overflow-y: auto;
   /* 允许内容滚动 */ 
 }
