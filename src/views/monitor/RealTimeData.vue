@@ -313,8 +313,8 @@ export default {
   flex-direction: column;
   overflow-y: auto;
   min-width: 0;
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; 
+  scrollbar-width: none; 
 }
 
 .data-display-area::-webkit-scrollbar {
@@ -347,11 +347,6 @@ h2 {
   flex: 1; /* Allow this container to grow and enable scrolling if DeviceBlocks overflow */
 }
 
-/* Removed .device-block and .device-header as they are now part of DeviceBlock.vue */
-/* Removed .status-indicator, .status-indicator.online, .status-indicator.offline as they are in DeviceBlock.vue */
-/* Removed .data-cards-row and .data-card as they are in DeviceBlock.vue */
-/* Removed .card-icon, .card-icon-offline, .sensor-icon, .card-content as they are in DeviceBlock.vue */
-/* Removed .card-title, .card-value, .value-text, .value-unit as they are in DeviceBlock.vue */
 
 .global-error-message {
   background-color: #ffebee; /* Light red background */
