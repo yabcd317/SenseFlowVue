@@ -592,7 +592,7 @@ h3 {
 }
 
 .custom-date-range {
-  border-top: 1px solid #EBEEF5;
+    border-top: 1px solid #EBEEF5;
   background-color: #f5f7fa;
 }
 
@@ -601,7 +601,7 @@ h3 {
   min-width: 300px !important;
 }
 
-:deep(.el-date-editor.el-input__inner) {
+:deep(.el-date-editor.el-input__wrapper) {
   width: 100%;
 }
 
