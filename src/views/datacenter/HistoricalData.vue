@@ -23,58 +23,9 @@
         </div>
         <!-- 日期范围选择器 -->
         <div class="date-range-container">
-          <el-popover placement="bottom" :width="200" trigger="click" popper-class="date-popover">
-            <template #reference>
-              <div class="date-display">
-                <span>{{ formatDateRange }}</span>
-                <i class="el-icon-arrow-down"></i>
-              </div>
-            </template>
+          <el-date-picker unlink-panels v-model="date" type="daterange" range-separator="-" start-placeholder="开始日期"
+            end-placeholder="结束日期" :shortcuts="shortcuts" />
 
-            <!-- 快捷选项 -->
-            <div class="date-shortcuts">
-              <div class="shortcut-item" :class="{ active: activeShortcut === 'lastHour' }"
-                @click="selectShortcut('lastHour')">
-                最近1小时
-              </div>
-              <div class="shortcut-item" :class="{ active: activeShortcut === 'today' }"
-                @click="selectShortcut('today')">
-                今日
-              </div>
-              <div class="shortcut-item" :class="{ active: activeShortcut === 'yesterday' }"
-                @click="selectShortcut('yesterday')">
-                昨日
-              </div>
-              <div class="shortcut-item" :class="{ active: activeShortcut === 'last7Days' }"
-                @click="selectShortcut('last7Days')">
-                最近7日
-              </div>
-              <div class="shortcut-item" :class="{ active: activeShortcut === 'last30Days' }"
-                @click="selectShortcut('last30Days')">
-                最近30日
-              </div>
-              <div class="shortcut-item" :class="{ active: activeShortcut === 'custom' }"
-                @click="selectShortcut('custom')">
-                自定义
-              </div>
-            </div>
-
-            <!-- 自定义日期范围选择器 - 移除条件渲染，使其始终显示 -->
-            <div class="custom-date-range">
-              <el-date-picker
-                v-model="customDateRange"
-                type="datetimerange"
-                range-separator="至"
-                start-placeholder="开始日期"
-                end-placeholder="结束日期"
-                :disabled-date="disabledCustomDate"
-                @change="handleCustomDateChange"
-                format="YYYY-MM-DD HH:mm"
-                value-format="YYYY-MM-DD HH:mm"
-                size="small"
-              />
-            </div>
-          </el-popover>
         </div>
 
         <!-- 按钮区域 -->
@@ -115,8 +66,180 @@ import { ref, reactive, onMounted, onUnmounted, watch, computed } from 'vue';
 import eventBus from '../../eventBus';
 import DeviceList from '../../components/DeviceList.vue';
 
+function formatWeek() {
+  const end = new Date();
+  // 一周的某一天
+  const week = end.getDay();
+  //一天的毫秒数
+  const millisecond = 1000 * 60 * 60 * 24;
+  //减去的天数
+  const minusDay = week != 0 ? week - 1 : 6;
+  //本周
+  const monday = new Date(end.getTime() - minusDay * millisecond);
+  const start = new Date(monday);
+  return [start, end];
+}
+
+const shortcuts = [
+  {
+    text: '今天',
+    value: () => {
+      const end = new Date();
+      const start = new Date();
+      return [start, end];
+    },
+  },
+  {
+    text: '本周',
+    value: () => {
+      return formatWeek();
+    },
+  },
+  {
+    text: '本月',
+    value: () => {
+      const end = new Date();
+      const fullYear = new Date().getFullYear();
+      const mouth = new Date().getMonth();
+      const start = new Date(fullYear, mouth, 1);
+      return [start, end];
+    },
+  },
+  {
+    text: '本年度',
+    value: () => {
+      const end = new Date();
+      const start = new Date(new Date().getFullYear(), 0);
+      return [start, end];
+    },
+  },
+];
 export default {
   name: 'HistoricalData',
+  data() {
+    return {
+      createForm: {
+        timeCycle: []
+      },
+      pickerOptions: {
+        shortcuts: [{
+          text: '今天',
+          onClick(picker) {
+            picker.$emit('pick', [new Date(), new Date()]);
+          }
+        }, {
+          text: '昨天',
+          onClick(picker) {
+            const date = new Date();
+            date.setTime(date.getTime() - 3600 * 1000 * 24);
+            picker.$emit('pick', [date, date]);
+          }
+        },
+        {
+          text: '近7天',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            end.setTime(start.getTime() - 3600 * 1000 * 24)
+            start.setTime(start.getTime() - 3600 * 1000 * 24 * 7);
+            picker.$emit('pick', [start, end]);
+          }
+        }, {
+          text: '近30天',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            end.setTime(start.getTime() - 3600 * 1000 * 24)
+            start.setTime(start.getTime() - 3600 * 1000 * 24 * 30);
+            picker.$emit('pick', [start, end]);
+          }
+        }, {
+          text: '近90天',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            end.setTime(start.getTime() - 3600 * 1000 * 24)
+            start.setTime(start.getTime() - 3600 * 1000 * 24 * 90);
+            picker.$emit('pick', [start, end]);
+          },
+        },
+        {
+          text: '近180天',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            end.setTime(start.getTime() - 3600 * 1000 * 24)
+            start.setTime(start.getTime() - 3600 * 1000 * 24 * 180);
+            picker.$emit('pick', [start, end]);
+          },
+        },
+        {
+          text: '近一年',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            end.setTime(start.getTime() - 3600 * 1000 * 24)
+            start.setTime(start.getTime() - 3600 * 1000 * 24 * 365);
+            picker.$emit('pick', [start, end]);
+          },
+        },
+        {
+          text: '本周',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            end.setTime(start.getTime() - 3600 * 1000 * 24)
+            //现在星期几；0代表星期天，6代表星期六
+            var thisDay = start.getDay();
+            //现在是一个月的第几天
+            var thisDate = start.getDate();
+            console.log(thisDay)
+            console.log(thisDate)
+            if (thisDay != 0) {
+              start.setDate(thisDate - thisDay + 1);
+            }
+            picker.$emit('pick', [start, end]);
+          }
+        },
+        {
+          text: '本月',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            end.setTime(start.getTime() - 3600 * 1000 * 24)
+            start.setDate(1);
+            picker.$emit('pick', [start, end]);
+          }
+        },
+        {
+          text: '本季度',
+          onClick(picker) {
+            var oDate = new Date();
+            var thisYear = oDate.getFullYear();
+            var thisMonth = oDate.getMonth() + 1;
+            var n = Math.ceil(thisMonth / 3); // 季度
+            var Month = n * 3 - 1;
+            var start = new Date(thisYear, Month - 2, 1);
+            var end = new Date();
+            end.setTime(end.getTime() - 3600 * 1000 * 24)
+            picker.$emit('pick', [start, end]);
+          }
+        },
+        {
+          text: '本年',
+          onClick(picker) {
+            const end = new Date();
+            const start = new Date();
+            start.setMonth(0);
+            start.setDate(1);
+            end.setTime(end.getTime() - 3600 * 1000 * 24)
+            picker.$emit('pick', [start, end]);
+          }
+        },
+        ]
+      },
+    }
+  },
   components: {
     DeviceList
   },
@@ -225,7 +348,7 @@ export default {
     const dateRange = ref(null);
     const activeShortcut = ref('lastHour'); // 默认选中最近1小时
     const customDateRange = ref(null); // 自定义日期范围
-    
+
     // 格式化显示的日期范围
     const formatDateRange = computed(() => {
       if (!dateRange.value || !dateRange.value[0] || !dateRange.value[1]) {
@@ -233,23 +356,23 @@ export default {
       }
       return `${dateRange.value[0]} 至 ${dateRange.value[1]}`;
     });
-    
+
     // 选择快捷方式
     const selectShortcut = (shortcut) => {
       activeShortcut.value = shortcut;
-      
+
       // 如果选择自定义，不更新日期范围，保持当前自定义选择
       if (shortcut === 'custom') {
-      // 如果没有自定义日期范围，初始化为当前日期范围
-      if (!customDateRange.value && dateRange.value && dateRange.value.length === 2) {
-      customDateRange.value = dateRange.value;
+        // 如果没有自定义日期范围，初始化为当前日期范围
+        if (!customDateRange.value && dateRange.value && dateRange.value.length === 2) {
+          customDateRange.value = dateRange.value;
+        }
+        return;
       }
-      return;
-      }
-      
+
       const now = new Date();
       let start, end;
-      
+
       switch (shortcut) {
         case 'lastHour':
           end = new Date(now);
@@ -280,7 +403,7 @@ export default {
           start.setHours(0, 0, 0, 0);
           break;
       }
-      
+
       if (start && end) {
         const formatDate = (date) => {
           const year = date.getFullYear();
@@ -290,12 +413,12 @@ export default {
           const minutes = String(date.getMinutes()).padStart(2, '0');
           return `${year}-${month}-${day} ${hours}:${minutes}`;
         };
-        
+
         dateRange.value = [formatDate(start), formatDate(end)];
         handleDateRangeChange(dateRange.value);
       }
     };
-    
+
     // 处理自定义日期变化
     const handleCustomDateChange = (val) => {
       if (val && val.length === 2) {
@@ -303,7 +426,7 @@ export default {
         handleDateRangeChange(val);
       }
     };
-    
+
     // 禁用自定义日期函数 - 限制最大选择范围为30天
     const disabledCustomDate = (time) => {
       if (!customDateRange.value || !customDateRange.value[0]) {
@@ -592,7 +715,7 @@ h3 {
 }
 
 .custom-date-range {
-    border-top: 1px solid #EBEEF5;
+  border-top: 1px solid #EBEEF5;
   background-color: #f5f7fa;
 }
 

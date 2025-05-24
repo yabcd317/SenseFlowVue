@@ -51,13 +51,18 @@
         <!-- 中间一行：3个组件 -->
         <div class="home-row middle-row">
           <DeviceList class="home-component-placeholder middle-component-1" />
-          <div class="home-component-placeholder middle-component-2">组件6</div>
+          <!-- 修改前 -->
+          <!-- <div class="home-component-placeholder middle-component-2">组件6</div> -->
+          <!-- 修改后 -->
+          <div class="home-component-placeholder middle-component-2">
+            <el-amap :center="center" :zoom="zoom" @init="init" />
+          </div>
           <DeviceInfo class="home-component-placeholder middle-component-3" :deviceId="selectedDeviceId" />
         </div>
         <!-- 下面一行：1个组件 -->
         <div class="home-row bottom-row">
           <DeviceBlock v-if="selectedDeviceId && deviceData" class="home-component-placeholder full-width-component"
-            :device="{ id: selectedDeviceId, deviceName: deviceData.deviceName  }" :device-data="deviceData"
+            :device="{ id: selectedDeviceId, deviceName: deviceData.deviceName }" :device-data="deviceData"
             :loading="loading" @card-click="handleCardClick" />
           <div v-else class="home-component-placeholder full-width-component no-device-message">
             请稍候
@@ -77,6 +82,8 @@ import DeviceList from '../components/DeviceList.vue';
 import DeviceInfo from '../components/DeviceInfo.vue';
 import eventBus from '../eventBus';
 import DeviceBlock from '../components/DeviceBlock.vue';
+import { defineComponent } from "vue";
+import { ElAmap } from "@vuemap/vue-amap";
 
 export default {
   name: 'HomePage',
@@ -86,12 +93,16 @@ export default {
     DeviceList,
     DeviceInfo,
     DeviceBlock,
+    ElAmap
   },
   data() {
     return {
       user: {
         username: ''
       },
+      zoom: 12,
+      center: [109.461370137, 36.619032302],
+      map: null,
       menuItems: [
         {
           name: '首页',
@@ -149,6 +160,14 @@ export default {
     }
   },
   methods: {
+    init(map) {
+      const marker = new AMap.Marker({
+        position: [109.461370137, 36.619032302]
+      });
+      map.add(marker);
+      this.map = map;
+      console.log('map init: ', map)
+    },
     logout() {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -392,6 +411,10 @@ export default {
   height: 380px;
 }
 
+.el-vue-amap-container {
+  width: 100%;
+}
+
 .bottom-row {
   /* top: 494px; // 移除绝对定位相关的top */
   /* height: 400px;  */
@@ -401,7 +424,7 @@ export default {
   height: calc(100% - 490px);
   /* 使其子元素也能使用flex布局 */
 
-  
+
 }
 
 .top-row .home-component-placeholder,
@@ -545,14 +568,47 @@ export default {
 .offline-devices {
   background-color: #434343;
 }
+
 .data-cards-header {
   /* 保持原有样式不做修改 */
-  flex-shrink: 0; /* 防止header被压缩 */
+  flex-shrink: 0;
+  /* 防止header被压缩 */
 }
+
 .full-width-component>* {
   /* width: 100%; */
   /* height: 100%; */
   overflow-y: auto;
-  /* 允许内容滚动 */ 
+  /* 允许内容滚动 */
+}
+
+.map-page-container {
+  height: 85%;
+  position: relative;
+}
+
+.toolbar {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.toolbar button {
+  padding: 8px 16px;
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.toolbar button:hover {
+  background-color: #40a9ff;
+}
+
+/* 确保地图容器内的高德地图组件能够正常显示 */
+.map-page-container .el-amap {
+  width: 100%;
+  height: 100%;
 }
 </style>
