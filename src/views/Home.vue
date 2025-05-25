@@ -5,11 +5,8 @@
     <SideBar :menuItems="menuItems" :activeIndex="activeMenuIndex" :activeSubIndex="activeSubMenuIndex"
       @menu-click="handleMenuChange" @toggle-submenu="toggleSubmenu" />
 
-    <!-- 主内容区域 -->
     <div class="main-content-area">
-      <!-- 检查是否是首页路径，如果是，则显示特定布局 -->
       <div v-if="$route.path === '/'" class="home-page-layout">
-        <!-- 最上面一行：4个组件 -->
         <div class="home-row top-row">
           <div class="status-card total-devices">
             <div class="icon-container">
@@ -48,18 +45,13 @@
             </div>
           </div>
         </div>
-        <!-- 中间一行：3个组件 -->
         <div class="home-row middle-row">
           <DeviceList class="home-component-placeholder middle-component-1" />
-          <!-- 修改前 -->
-          <!-- <div class="home-component-placeholder middle-component-2">组件6</div> -->
-          <!-- 修改后 -->
           <div class="home-component-placeholder middle-component-2">
             <el-amap :center="center" :zoom="zoom" @init="init" />
           </div>
           <DeviceInfo class="home-component-placeholder middle-component-3" :deviceId="selectedDeviceId" />
         </div>
-        <!-- 下面一行：1个组件 -->
         <div class="home-row bottom-row">
           <DeviceBlock v-if="selectedDeviceId && deviceData" class="home-component-placeholder full-width-component"
             :device="{ id: selectedDeviceId, deviceName: selectedDevice ? selectedDevice.deviceName : `设备${selectedDeviceId}` }" :device-data="deviceData"
@@ -69,7 +61,6 @@
           </div>
         </div>
       </div>
-      <!-- 其他路由的视图 -->
       <router-view v-else :key="$route.fullPath"></router-view>
     </div>
   </div>
@@ -167,7 +158,6 @@ export default {
       });
       map.add(marker);
       this.map = map;
-      console.log('map init: ', map)
     },
     logout() {
       localStorage.removeItem('token');
@@ -194,8 +184,6 @@ export default {
       } else if (!path && subIndex === -1) {
         this.toggleSubmenu(parentIndex);
       }
-
-      console.log('导航到:', path);
     },
     toggleSubmenu(index) {
       if (!this.menuItems[index]) return;
@@ -238,8 +226,6 @@ export default {
       }
     },
     fetchDeviceStats() {
-      // 这里可以添加从API获取设备统计数据的逻辑
-      // 暂时使用静态数据
       this.deviceStats = {
         total: 6,
         online: 5,
@@ -249,7 +235,7 @@ export default {
     },
     handleDevicesUpdated(devices) {
       if (devices && devices.length > 0) {
-        this.selectedDevice = devices[0]; // 保存完整的设备对象
+        this.selectedDevice = devices[0];
         this.selectedDeviceId = devices[0].id;
         this.fetchDeviceData(devices[0].id);
       } else {
@@ -259,19 +245,10 @@ export default {
       }
     },
     handleDeviceSelected(deviceId) {
-      // 从设备列表中查找完整的设备对象
       const device = this.findDeviceById(deviceId);
       this.selectedDevice = device;
       this.selectedDeviceId = deviceId;
       this.fetchDeviceData(deviceId);
-    },
-    
-    // 添加一个辅助方法来查找设备
-    findDeviceById(deviceId) {
-    // 这里需要访问设备列表
-    // 如果没有直接访问设备列表的方式，可以考虑在DeviceList组件中
-    // 添加一个方法，通过eventBus提供设备信息
-    return null; // 临时返回null，实际实现需要根据项目结构调整
     },
     async fetchDeviceData(deviceId) {
       if (!deviceId) return;
@@ -280,14 +257,13 @@ export default {
       this.deviceData = null;
 
       try {
-        // 向后端发送请求获取设备数据
-        const response = await fetch(`/senser/deviceData`, { // 修改了URL
-          method: 'POST', // 修改了请求方法
+        const response = await fetch(`/senser/deviceData`, {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json' // 添加了Content-Type
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify([deviceId]) // 修改了请求体
+          body: JSON.stringify([deviceId])
         });
 
         if (!response.ok) {
@@ -296,9 +272,8 @@ export default {
 
         const result = await response.json();
         if (result.code === 1 && result.data && result.data.length > 0) {
-          const deviceRawData = result.data[0]; // 获取数组中的第一个设备数据
+          const deviceRawData = result.data[0];
 
-          // 将 dataItems 转换为 DeviceBlock期望的 values 对象
           const values = {};
           if (deviceRawData.dataItems && Array.isArray(deviceRawData.dataItems)) {
             deviceRawData.dataItems.forEach(item => {
@@ -310,16 +285,13 @@ export default {
           }
 
           this.deviceData = {
-            // 注意：API响应中没有deviceName，这里我们先用deviceId构造一个
-            // 您可能需要根据实际情况调整deviceName的来源
             deviceName: `设备${deviceRawData.deviceId || deviceId}`,
-            status: deviceRawData.status === 0 ? '在线' : '离线', // 假设 status 0 是在线
-            values: values // 转换后的传感器数据
+            status: deviceRawData.status === 0 ? '在线' : '离线',
+            values: values
           };
         } else if (result.code !== 1) {
           throw new Error(result.msg || '获取设备数据失败');
         } else {
-          // code为1但data为空或不存在的情况
           console.warn('设备数据为空或格式不正确:', result);
           this.deviceData = {
             deviceName: `设备${deviceId}`,
@@ -340,7 +312,6 @@ export default {
     },
     handleCardClick(device, sensorName, valueObj) {
       console.log('卡片点击:', device, sensorName, valueObj);
-      // 这里可以添加显示详细信息的逻辑，例如打开模态框等
     },
   },
   mounted() {
@@ -359,7 +330,6 @@ export default {
 
     if (this.$route.path === '/') {
       setTimeout(() => {
-        // 通过eventBus选择设备，这样可以获取完整的设备对象
         eventBus.emit('select-device', 1);
       }, 500);
     }
@@ -372,6 +342,7 @@ export default {
 </script>
 
 <style scoped>
+/* 容器样式 */
 .home-container {
   width: 100%;
   min-height: 100vh;
@@ -394,70 +365,46 @@ export default {
   height: 100%;
   padding: 8px;
   box-sizing: border-box;
-  /* overflow: hidden; // 移除或注释掉，以允许内容滚动（如果需要） */
   display: flex;
-  /* 改为flex布局 */
   flex-direction: column;
-  /* 垂直排列 */
   gap: 8px;
-  /* 行之间的间距 */
 }
 
+/* 行样式 */
 .home-row {
   width: 100%;
-  /* 宽度占满 */
-  /* position: absolute; // 移除绝对定位 */
-  /* left: 8px; // 移除 */
   display: flex;
   gap: 8px;
   flex-shrink: 0;
-  /* 防止行在空间不足时收缩 */
 }
 
 .top-row {
-  /* top: 8px; // 移除绝对定位相关的top */
   height: 90px;
 }
 
 .middle-row {
-  /* top: 106px; // 移除绝对定位相关的top */
   height: 380px;
 }
 
-.el-vue-amap-container {
-  width: 100%;
-}
-
 .bottom-row {
-  /* top: 494px; // 移除绝对定位相关的top */
-  /* height: 400px;  */
-  /* flex-grow: 1; */
-  /* 占据剩余的垂直空间 */
-  /* display: flex; */
   height: calc(100% - 490px);
-  /* 使其子元素也能使用flex布局 */
-
-
 }
 
+/* 组件占位符样式 */
 .top-row .home-component-placeholder,
 .middle-row .home-component-placeholder,
 .bottom-row .home-component-placeholder.full-width-component {
-
   background-color: white;
   display: flex;
   align-items: center;
-  /* 恢复/保持 垂直居中 */
   justify-content: center;
-  /* 恢复/保持 水平居中 */
   border-radius: 4px;
   box-sizing: border-box;
 }
 
-/* 单独为 middle-row 的组件设置宽度，如果需要的话 */
+/* 中间行组件样式 */
 .middle-row .middle-component-1 {
   flex: 2;
-  /* 示例：可以根据需要调整flex属性 */
 }
 
 .middle-row .middle-component-2 {
@@ -468,60 +415,49 @@ export default {
   flex: 3;
 }
 
+.el-vue-amap-container {
+  width: 100%;
+}
 
+/* 底部行组件样式 */
 .bottom-row .home-component-placeholder.full-width-component {
   height: 100%;
-  /* background-color: #e9ecef; */
-  /* 可以移除，让DeviceBlock自己的背景生效 */
-  /* border: 1px solid #ced4da; */
-  /* 可以移除，让DeviceBlock自己的边框生效 */
   display: flex;
   align-items: flex-start;
-  /* 左上对齐：交叉轴起点 */
   justify-content: flex-start;
-  /* 左上对齐：主轴起点 */
   border-radius: 4px;
-  /* 可以保留或移除，取决于是否希望这个容器有圆角 */
   box-sizing: border-box;
   width: 100%;
   flex-grow: 1;
   padding: 0;
-  /* 确保DeviceBlock可以贴边 */
   flex-shrink: 0;
-  /* 防止内容压缩 */
   min-height: 100%;
-  /* 最小高度保持容器高度 */
   overflow: hidden;
-  /* 隐藏溢出内容 */
 }
 
 .no-device-message {
   display: flex;
   align-items: flex-start;
-  /* 左上对齐：交叉轴起点 */
   justify-content: flex-start;
-  /* 左上对齐：主轴起点 */
   color: #6c757d;
   font-size: 16px;
   background-color: #ffffff;
-  /* 保持或根据设计调整 */
   border-radius: 8px;
-  /* 保持或根据设计调整 */
-  /* box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); */
-  /* 可以考虑移除或调整，避免与DeviceBlock样式冲突 */
   width: 100%;
   height: 100%;
   padding: 15px;
-  /* 为文字提供一些内边距 */
   box-sizing: border-box;
 }
 
-/* 可选：确保DeviceBlock组件本身没有外边距，如果它有的话 */
 .bottom-row .full-width-component>.device-block {
   margin: 0;
 }
 
-/* 其他样式，如 .status-card 等保持不变 */
+.full-width-component>* {
+  overflow-y: auto;
+}
+
+/* 状态卡片样式 */
 .status-card {
   flex: 1;
   background-color: #ffffff;
@@ -532,7 +468,6 @@ export default {
   gap: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   height: 100%;
-  /* 确保status-card填满top-row的高度 */
   box-sizing: border-box;
 }
 
@@ -566,6 +501,7 @@ export default {
   font-weight: bold;
 }
 
+/* 状态卡片颜色 */
 .total-devices {
   background-color: #1890ff;
 }
@@ -582,19 +518,7 @@ export default {
   background-color: #434343;
 }
 
-.data-cards-header {
-  /* 保持原有样式不做修改 */
-  flex-shrink: 0;
-  /* 防止header被压缩 */
-}
-
-.full-width-component>* {
-  /* width: 100%; */
-  /* height: 100%; */
-  overflow-y: auto;
-  /* 允许内容滚动 */
-}
-
+/* 地图相关样式 */
 .map-page-container {
   height: 85%;
   position: relative;
@@ -612,8 +536,8 @@ export default {
   color: white;
   border: none;
   border-radius: 4px;
-  cursor: pointer;
 }
+
 
 .toolbar button:hover {
   background-color: #40a9ff;
