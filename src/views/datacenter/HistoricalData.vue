@@ -45,9 +45,38 @@
 
 
         <!-- 历史数据展示区域 -->
+        <!-- 在 history-data-container div 中替换现有内容 -->
         <div class="history-data-container">
-          <p>选中设备的历史数据将在此处显示</p>
-          <!-- 可以添加日期选择器、图表等组件 -->
+          <div v-if="loading" class="loading-data">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>加载数据中...</span>
+          </div>
+          <div v-else-if="historyData.length === 0" class="no-data">
+            <p>暂无历史数据，请调整查询条件后重试</p>
+          </div>
+          <div v-else class="data-table-wrapper">
+            <el-table :data="historyData" border style="width: 100%" height="calc(100% - 50px)">
+              <el-table-column prop="factorName" label="监测因子" width="150" />
+              <el-table-column prop="text" label="数值">
+                <template #default="scope">
+                  {{ scope.row.text }} {{ scope.row.unit }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="recordTimeStr" label="记录时间" width="180" />
+            </el-table>
+            
+            <div class="pagination-container">
+              <el-pagination
+                v-model:current-page="currentPage"
+                v-model:page-size="pageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="totalRecords"
+                @size-change="handleSizeChange"
+                @current-change="handlePageChange"
+              />
+            </div>
+          </div>
         </div>
       </div>
       <div v-else class="no-device-selected">
@@ -297,14 +326,106 @@ const selectShortcut = (shortcut) => {
   }
 };
 
+// 格式化日期时间函数
+const formatDateTime = (date) => {
+  if (!date) return '';
+  
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const seconds = String(d.getSeconds()).padStart(2, '0');
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+// 添加历史数据相关的响应式变量
+const historyData = ref([]);
+const totalRecords = ref(0);
+const currentPage = ref(1);
+const pageSize = ref(10);
+const loading = ref(false);
+
 // 获取历史数据
-const fetchHistoricalData = () => {
-  // 实现获取历史数据的逻辑
-  console.log('获取历史数据', {
-    设备: selectedDevices.value,
-    因子: selectedFactors.value,
-    日期范围: date.value
-  });
+const fetchHistoricalData = async () => {
+  if (!selectedDevices.value || selectedDevices.value.length === 0) {
+    ElMessage.warning('请选择设备');
+    return;
+  }
+  
+  if (!selectedFactors.value || selectedFactors.value.length === 0) {
+    ElMessage.warning('请选择监测因子');
+    return;
+  }
+  
+  if (!date.value || !date.value[0] || !date.value[1]) {
+    ElMessage.warning('请选择日期范围');
+    return;
+  }
+  
+  const deviceId = selectedDevices.value[0].id;
+  const startTime = formatDateTime(date.value[0]);
+  const endTime = formatDateTime(date.value[1]);
+  
+  // 构建请求参数
+  const requestData = {
+    deviceId: deviceId,
+    factorIds: selectedFactors.value,
+    startTime: startTime,
+    endTime: endTime,
+    page: currentPage.value,
+    pageSize: pageSize.value
+  };
+  
+  console.log('发送历史数据请求:', requestData);
+  
+  try {
+    loading.value = true;
+    globalFetchError.value = null;
+    const response = await fetch('/senser/deviceHistoryData', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (result.code === 1 && result.data) {
+      console.log('[HistoricalData] 成功获取历史数据:', result.data);
+      historyData.value = result.data.records || [];
+      totalRecords.value = result.data.total || 0;
+      ElMessage.success('历史数据获取成功');
+    } else {
+      throw new Error(result.msg || '获取历史数据失败');
+    }
+  } catch (error) {
+    console.error('[HistoricalData] 获取历史数据失败:', error);
+    globalFetchError.value = `获取历史数据失败: ${error.message}`;
+    ElMessage.error(`获取历史数据失败: ${error.message}`);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// 处理页码变化
+const handlePageChange = (page) => {
+  currentPage.value = page;
+  fetchHistoricalData();
+};
+
+// 处理每页条数变化
+const handleSizeChange = (size) => {
+  pageSize.value = size;
+  currentPage.value = 1; // 重置为第一页
+  fetchHistoricalData();
 };
 
 // 组件挂载和卸载时的事件监听
@@ -428,15 +549,39 @@ h3 {
 .history-data-container {
   flex: 1;
   padding: 20px;
-  text-align: center;
-  color: #555;
   background-color: #f9f9f9;
   border-radius: 6px;
   border: 1px solid #e0e0e0;
   min-height: 200px;
   display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.loading-data, .no-data {
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  height: 100%;
+  color: #909399;
+}
+
+.loading-data .el-icon {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.data-table-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pagination-container {
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .global-error-message {
