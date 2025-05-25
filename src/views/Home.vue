@@ -62,7 +62,7 @@
         <!-- 下面一行：1个组件 -->
         <div class="home-row bottom-row">
           <DeviceBlock v-if="selectedDeviceId && deviceData" class="home-component-placeholder full-width-component"
-            :device="{ id: selectedDeviceId, deviceName: deviceData.deviceName }" :device-data="deviceData"
+            :device="{ id: selectedDeviceId, deviceName: selectedDevice ? selectedDevice.deviceName : `设备${selectedDeviceId}` }" :device-data="deviceData"
             :loading="loading" @card-click="handleCardClick" />
           <div v-else class="home-component-placeholder full-width-component no-device-message">
             请稍候
@@ -134,6 +134,7 @@ export default {
         offline: 1
       },
       selectedDeviceId: null,
+      selectedDevice: null, 
       deviceData: null,
       loading: false,
     }
@@ -248,16 +249,29 @@ export default {
     },
     handleDevicesUpdated(devices) {
       if (devices && devices.length > 0) {
+        this.selectedDevice = devices[0]; // 保存完整的设备对象
         this.selectedDeviceId = devices[0].id;
         this.fetchDeviceData(devices[0].id);
       } else {
+        this.selectedDevice = null;
         this.selectedDeviceId = null;
         this.deviceData = null;
       }
     },
     handleDeviceSelected(deviceId) {
+      // 从设备列表中查找完整的设备对象
+      const device = this.findDeviceById(deviceId);
+      this.selectedDevice = device;
       this.selectedDeviceId = deviceId;
       this.fetchDeviceData(deviceId);
+    },
+    
+    // 添加一个辅助方法来查找设备
+    findDeviceById(deviceId) {
+    // 这里需要访问设备列表
+    // 如果没有直接访问设备列表的方式，可以考虑在DeviceList组件中
+    // 添加一个方法，通过eventBus提供设备信息
+    return null; // 临时返回null，实际实现需要根据项目结构调整
     },
     async fetchDeviceData(deviceId) {
       if (!deviceId) return;
@@ -345,9 +359,8 @@ export default {
 
     if (this.$route.path === '/') {
       setTimeout(() => {
-        this.selectedDeviceId = 1;
+        // 通过eventBus选择设备，这样可以获取完整的设备对象
         eventBus.emit('select-device', 1);
-        this.fetchDeviceData(1);
       }, 500);
     }
   },
