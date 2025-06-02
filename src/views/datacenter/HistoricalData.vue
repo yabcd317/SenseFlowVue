@@ -31,7 +31,7 @@
 
         <!-- 按钮区域 -->
         <div class="button-area">
-          <el-button type="primary" @click="fetchHistoricalData">查询</el-button>
+          <el-button type="primary" @click="() => fetchHistoricalData(true)">查询</el-button>
         </div>
       </div>
       <h2>历史数据查询</h2>
@@ -351,7 +351,12 @@ const pageSize = ref(10);
 const loading = ref(false);
 
 // 获取历史数据
-const fetchHistoricalData = async () => {
+const fetchHistoricalData = async (resetPage = false) => {
+  // 只在主动查询时重置页码
+  if (resetPage) {
+    currentPage.value = 1;
+  }
+  
   if (!selectedDevices.value || selectedDevices.value.length === 0) {
     ElMessage.warning('请选择设备');
     return;
@@ -425,14 +430,14 @@ const fetchHistoricalData = async () => {
 // 处理页码变化
 const handlePageChange = (page) => {
   currentPage.value = page;
-  fetchHistoricalData();
+  fetchHistoricalData(false); // 不重置页码
 };
 
 // 处理每页条数变化
 const handleSizeChange = (size) => {
   pageSize.value = size;
   currentPage.value = 1; // 重置为第一页
-  fetchHistoricalData();
+  fetchHistoricalData(false); // 不重置页码
 };
 
 // 组件挂载和卸载时的事件监听
