@@ -371,14 +371,18 @@ const fetchHistoricalData = async () => {
   const startTime = formatDateTime(date.value[0]);
   const endTime = formatDateTime(date.value[1]);
   
-  // 构建请求参数
+  // 根据选择的因子数量调整分页参数
+  const factorCount = selectedFactors.value.length;
+  const adjustedPage = Math.ceil(currentPage.value / factorCount) || 1; // 避免除以0
+  const adjustedPageSize = pageSize.value * factorCount;
+  
   const requestData = {
     deviceId: deviceId,
     factorIds: selectedFactors.value,
     startTime: startTime,
     endTime: endTime,
-    page: currentPage.value,
-    pageSize: pageSize.value
+    page: adjustedPage,
+    pageSize: adjustedPageSize
   };
   
   console.log('发送历史数据请求:', requestData);
@@ -403,7 +407,8 @@ const fetchHistoricalData = async () => {
     if (result.code === 1 && result.data) {
       console.log('[HistoricalData] 成功获取历史数据:', result.data);
       historyData.value = result.data.records || [];
-      totalRecords.value = result.data.total || 0;
+      // 根据因子数量调整总记录数
+      totalRecords.value = Math.ceil((result.data.total || 0) / factorCount);
       ElMessage.success('历史数据获取成功');
     } else {
       throw new Error(result.msg || '获取历史数据失败');
