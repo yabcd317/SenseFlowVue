@@ -3,26 +3,6 @@
     <!-- 左侧数据展示区域 -->
     <div class="data-display-area">
       <div class="data-display-area-top">
-        <!-- 选择框 - 使用 Element Plus 的 el-select -->
-        <!-- 设备因子选择区域 -->
-        <div class="factor-tags-container">
-          <el-select v-model="selectedFactors" multiple collapse-tags :max-collapse-tags="1"
-            placeholder="请选择监测因子" style="width: 100%" class="single-line-select">
-            <!-- 将全选和清空选项放在第一个位置 -->
-            <div
-              style="display: flex; justify-content: space-between; padding: 5px 12px; border-bottom: 1px solid #EBEEF5;">
-              <el-checkbox v-model="checkAll" :indeterminate="isIndeterminate" @change="handleCheckAll">
-                全选
-              </el-checkbox>
-              <el-button size="small" @click="clearSelection" type="text">清空</el-button>
-            </div>
-
-            <!-- 添加这部分代码来显示因子选项 -->
-            <el-option v-for="factor in deviceFactors" :key="factor.factorId" :label="`${selectedDevices[0]?.deviceName}-${factor.name}`"
-              :value="factor.factorId">
-            </el-option>
-          </el-select>
-        </div>
         <!-- 日期范围选择器 -->
         <div class="date-range-container">
           <el-date-picker unlink-panels v-model="date" type="datetimerange" range-separator="-" start-placeholder="开始日期"
@@ -84,10 +64,11 @@
 
     <!-- 右侧设备列表区域 -->
     <div class="device-list-area">
-      <DeviceList :multi-select="false" />
+      <DeviceList :multi-select="true" />
     </div>
   </div>
 </template>
+
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, watch, computed } from 'vue';
 import { ElMessage } from 'element-plus';
@@ -203,8 +184,8 @@ watch(selectedFactors, (newFactors) => {
 });
 
 // 获取设备因子数据
-const fetchDeviceFactors = async (deviceId) => {
-  if (!deviceId) return;
+const fetchDeviceFactors = async (deviceIds) => {
+  if (!deviceIds || deviceIds.length === 0) return;
 
   loadingFactors.value = true;
   deviceFactors.value = [];
@@ -213,26 +194,35 @@ const fetchDeviceFactors = async (deviceId) => {
   isIndeterminate.value = false;
 
   try {
-    console.log(`[AlarmData] 获取设备 ${deviceId} 的监测因子...`);
-    const response = await fetch(`/senser/deviceFactors/${deviceId}`);
+    // 获取所有选中设备的因子
+    const promises = deviceIds.map(deviceId =>
+      fetch(`/senser/deviceFactors/${deviceId}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
+          }
+          return response.json();
+        })
+    );
 
-    if (!response.ok) {
-      throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
-    }
-
-    const result = await response.json();
-
-    if (result.code === 1 && result.data) {
-      console.log('[AlarmData] 成功获取设备因子数据:', result.data);
-      deviceFactors.value = result.data;
-
-      // 如果有因子数据，默认选中第一个
-      if (result.data.length > 0) {
-        isIndeterminate.value = true;
+    const results = await Promise.all(promises);
+    
+    // 合并所有设备的因子，去重
+    const allFactors = results.reduce((acc, result) => {
+      if (result.code === 1 && result.data) {
+        return [...acc, ...result.data];
       }
-    } else {
-      throw new Error(result.msg || '获取设备因子数据失败');
-    }
+      return acc;
+    }, []);
+
+    // 因子去重
+    const uniqueFactors = Array.from(new Map(allFactors.map(factor => 
+      [factor.factorId, factor]
+    )).values());
+
+    deviceFactors.value = uniqueFactors;
+    console.log('[AlarmData] 成功获取设备因子数据:', uniqueFactors);
+
   } catch (error) {
     console.error('[AlarmData] 获取设备因子失败:', error);
     globalFetchError.value = `获取监测因子失败: ${error.message}`;
@@ -241,15 +231,15 @@ const fetchDeviceFactors = async (deviceId) => {
   }
 };
 
-// 处理从事件总线接收到的设备更新
+// 修改设备更新处理函数
 const handleDevicesUpdate = (devices) => {
   console.log('[AlarmData] Received devices-updated event:', devices);
   selectedDevices.value = devices || [];
 
-  // 如果选择了设备，获取第一个设备的因子数据
+  // 如果选择了设备，获取所有设备的因子数据
   if (selectedDevices.value.length > 0) {
-    const firstDeviceId = selectedDevices.value[0].id;
-    fetchDeviceFactors(firstDeviceId);
+    const deviceIds = selectedDevices.value.map(device => device.id);
+    fetchDeviceFactors(deviceIds);
   } else {
     deviceFactors.value = [];
     selectedFactors.value = [];
@@ -292,32 +282,23 @@ const fetchAlarmData = async (resetPage = false) => {
     return;
   }
   
-  if (!selectedFactors.value || selectedFactors.value.length === 0) {
-    ElMessage.warning('请选择监测因子');
-    return;
-  }
-  
   if (!date.value || !date.value[0] || !date.value[1]) {
     ElMessage.warning('请选择日期范围');
     return;
   }
   
-  const deviceId = selectedDevices.value[0].id;
   const startTime = formatDateTime(date.value[0]);
   const endTime = formatDateTime(date.value[1]);
   
-  // 根据选择的因子数量调整分页参数
-  const factorCount = selectedFactors.value.length;
-  const adjustedPage = Math.ceil(currentPage.value / factorCount) || 1; // 避免除以0
-  const adjustedPageSize = pageSize.value * factorCount;
+  // 获取所有选中设备的ID
+  const deviceIds = selectedDevices.value.map(device => device.id);
   
   const requestData = {
-    deviceId: deviceId,
-    factorIds: selectedFactors.value,
+    deviceIds: deviceIds,
     startTime: startTime,
     endTime: endTime,
-    page: adjustedPage,
-    pageSize: adjustedPageSize
+    page: currentPage.value,
+    pageSize: pageSize.value
   };
   
   console.log('发送报警数据请求:', requestData);
@@ -325,7 +306,7 @@ const fetchAlarmData = async (resetPage = false) => {
   try {
     loading.value = true;
     globalFetchError.value = null;
-    const response = await fetch('/senser/deviceAlarmData', { // 修改为报警数据接口
+    const response = await fetch('/senser/deviceAlarmData', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -342,8 +323,7 @@ const fetchAlarmData = async (resetPage = false) => {
     if (result.code === 1 && result.data) {
       console.log('[AlarmData] 成功获取报警数据:', result.data);
       alarmData.value = result.data.records || [];
-      // 根据因子数量调整总记录数
-      totalRecords.value = Math.ceil((result.data.total || 0) / factorCount);
+      totalRecords.value = result.data.total || 0;
       ElMessage.success('报警数据获取成功');
     } else {
       throw new Error(result.msg || '获取报警数据失败');
@@ -383,75 +363,25 @@ onUnmounted(() => {
 
 // 添加一个计算属性，用于将数据按时间和因子重组
 const groupedData = computed(() => {
-  if (!alarmData.value || alarmData.value.length === 0) return [];
-  
-  // 1. 获取所有唯一的时间点
-  const timePoints = [...new Set(alarmData.value.map(item => item.recordTimeStr))];
-  timePoints.sort(); // 确保时间点按顺序排列
-  
-  // 2. 获取所有唯一的因子
-  const uniqueFactors = [...new Set(alarmData.value.map(item => item.factorName))];
-  
-  // 3. 创建一个映射，用于快速查找特定时间点和因子的数据
-  const dataMap = {};
-  alarmData.value.forEach(item => {
-    if (!dataMap[item.recordTimeStr]) {
-      dataMap[item.recordTimeStr] = {};
-    }
-    dataMap[item.recordTimeStr][item.factorName] = {
-      value: item.text,
-      unit: item.unit,
-      alarmLevel: item.alarmLevel // 添加报警级别
-    };
-  });
-  
-  // 4. 构建重组后的数据
-  return timePoints.map(time => {
-    const row = { recordTimeStr: time };
-    
-    uniqueFactors.forEach(factor => {
-      const data = dataMap[time] && dataMap[time][factor];
-      if (data) {
-        // 根据报警级别添加不同的样式或标记
-        const alarmText = data.alarmLevel ? `[${data.alarmLevel}级报警] ` : '';
-        row[factor] = `${alarmText}${data.value} ${data.unit}`;
-      } else {
-        row[factor] = '-';
-      }
-    });
-    
-    return row;
-  });
+  return alarmData.value.map(item => ({
+    alarmTime: formatDateTime(item.startTime),
+    deviceId: item.deviceId,
+    nodeId: item.nodeId,
+    alarmLevel: `${item.alarmLevel}级报警`,
+    registerId: item.registerId,
+    duration: `${formatDateTime(item.startTime)} 至 ${formatDateTime(item.endTime)}`
+  }));
 });
 
-// 添加一个计算属性，用于生成表格的列配置
-const tableColumns = computed(() => {
-  if (!alarmData.value || alarmData.value.length === 0) return [];
-  
-  // 获取所有唯一的因子
-  const uniqueFactors = [...new Set(alarmData.value.map(item => item.factorName))];
-  
-  // 创建列配置
-  const columns = [
-    {
-      prop: 'recordTimeStr',
-      label: '报警时间',
-      width: '180px',
-      fixed: 'left'
-    }
-  ];
-  
-  // 为每个因子添加一列
-  uniqueFactors.forEach(factor => {
-    columns.push({
-      prop: factor,
-      label: factor,
-      minWidth: '120px'
-    });
-  });
-  
-  return columns;
-});
+// 修改表格列配置
+const tableColumns = computed(() => [
+  { prop: 'alarmTime', label: '报警时间', width: '180' },
+  { prop: 'deviceId', label: '设备ID', width: '100' },
+  { prop: 'nodeId', label: '节点ID', width: '100' },
+  { prop: 'alarmLevel', label: '报警等级', width: '100' },
+  { prop: 'registerId', label: '寄存器ID', width: '100' },
+  { prop: 'duration', label: '报警持续时间', minWidth: '300' }
+]);
 </script>
 <style scoped>
 .alarm-data-layout {
