@@ -129,6 +129,7 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Loading } from '@element-plus/icons-vue'
+import { http } from '../utils/http.js' // 添加这行导入
 
 // 响应式数据
 const searchUsername = ref('')
@@ -217,12 +218,7 @@ const fetchUsers = async (resetPage = false) => {
     loading.value = true
     globalFetchError.value = null
 
-    const response = await fetch(`/user/page?${params}`)
-
-    if (!response.ok) {
-      throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`)
-    }
-
+    const response = await http.get(`/user/page?${params}`)
     const result = await response.json()
 
     if (result.code === 1 && result.data) {
@@ -299,7 +295,6 @@ const handleDialogClose = (done) => {
 const submitUserForm = async () => {
   try {
     await userFormRef.value?.validate()
-
     submitting.value = true
 
     const submitData = {
@@ -313,25 +308,11 @@ const submitUserForm = async () => {
       submitData.password = userForm.password
     }
 
-    let url, method
+    let response
     if (isEditMode.value) {
-      url = `/user`
-      method = 'PUT'
+      response = await http.put('/user', submitData)
     } else {
-      url = '/user'
-      method = 'POST'
-    }
-
-    const response = await fetch(url, {
-      method: method,
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(submitData)
-    })
-
-    if (!response.ok) {
-      throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`)
+      response = await http.post('/user', submitData)
     }
 
     const result = await response.json()
@@ -359,19 +340,12 @@ const toggleUserStatus = async (user) => {
 
   try {
     await ElMessageBox.confirm(`确认${statusText}用户 "${user.username}"？`, '确认操作')
-
-    const response = await fetch(`/user/${user.id}/status`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ status: newStatus })
-    })
-
-    if (!response.ok) {
-      throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`)
+    const status = {
+      id: user.id,
+      status: newStatus,
     }
 
+    const response = await http.post('/user/status', status)
     const result = await response.json()
 
     if (result.code === 1) {
@@ -395,14 +369,7 @@ const deleteUser = async (user) => {
       type: 'warning'
     })
 
-    const response = await fetch(`/user/${user.id}`, {
-      method: 'DELETE'
-    })
-
-    if (!response.ok) {
-      throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`)
-    }
-
+    const response = await http.delete(`/user/${user.id}`)
     const result = await response.json()
 
     if (result.code === 1) {
@@ -418,11 +385,6 @@ const deleteUser = async (user) => {
     }
   }
 }
-
-// 组件挂载时获取数据
-onMounted(() => {
-  fetchUsers(true)
-})
 </script>
 
 <style scoped>

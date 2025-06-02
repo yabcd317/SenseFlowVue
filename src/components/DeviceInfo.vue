@@ -69,6 +69,7 @@
 <script>
 import { ref, onMounted, watch } from 'vue';
 import eventBus from '../eventBus';
+import { http } from '../utils/http.js'
 
 export default {
   name: 'DeviceInfo',
@@ -94,14 +95,8 @@ export default {
       error.value = null;
       
       try {
-        // 发送请求获取设备详情
-        const response = await fetch(`/senser/deviceInfo/${id}`);
-        
-        if (!response.ok) {
-          throw new Error(`获取设备信息失败: ${response.status} ${response.statusText}`);
-        }
-        
-        const result = await response.json();
+        // 使用http工具函数发送请求获取设备详情
+        const result = await http.get(`/senser/deviceInfo/${id}`);
         
         if (result.code === 1 && result.data) {
           deviceInfo.value = result.data;

@@ -23,6 +23,7 @@
 <script>
 import { ref, onMounted, computed } from 'vue';
 import eventBus from '../eventBus';
+import { http } from '../utils/http.js'
 
 export default {
   name: 'DeviceList',
@@ -43,15 +44,9 @@ export default {
     };
 
     const fetchDevices = async () => {
-      fetchError.value = null;
       try {
-        const response = await fetch('/senser/deviceList');
-
-        if (!response.ok) {
-          throw new Error(`获取设备列表失败: ${response.status} ${response.statusText}`);
-        }
-
-        const result = await response.json();
+        const response = await http.get('/senser/deviceList')
+        const result = await response.json()
 
         if (result.code === 1) {
           devices.value = result.data.map(device => ({

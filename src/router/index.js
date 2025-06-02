@@ -90,30 +90,35 @@ const router = createRouter({
 
 // 路由守卫，检查用户是否已登录
 router.beforeEach((to, from, next) => {
-  // 测试模式标志，设为true表示跳过登录验证
-  const isTestMode = true; // 改为 true 进行测试
-
-  if (isTestMode) {
-    // 测试模式下，自动放行所有路由
-    // 模拟一个用户信息
-    if (!localStorage.getItem('token')) {
-      localStorage.setItem('token', 'test-token');
-      localStorage.setItem('user', JSON.stringify({
-        username: '测试用户'
-      }));
-    }
-    // 检查是否尝试访问根路径下的不存在子路由，如果是，重定向到根路径
-    if (to.matched.length === 0 && to.path !== '/login') {
-      console.warn(`路由未匹配: ${to.path}, 重定向到 /`);
-      next('/');
-      return;
-    }
-
-    next();
-    return;
-  }
-
   const token = localStorage.getItem('token')
+  
+  // 检查token是否过期（可选）
+  if (token) {
+    try {
+      // 解析JWT token检查过期时间
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      const currentTime = Math.floor(Date.now() / 1000)
+      
+      if (payload.exp && payload.exp < currentTime) {
+        // token已过期，清除并重定向到登录页
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        if (to.meta.requiresAuth) {
+          next('/login')
+          return
+        }
+      }
+    } catch (error) {
+      console.error('Token解析失败:', error)
+      // token格式错误，清除
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      if (to.meta.requiresAuth) {
+        next('/login')
+        return
+      }
+    }
+  }
 
   if (to.meta.requiresAuth && !token) {
     // 需要登录但未登录，重定向到登录页
