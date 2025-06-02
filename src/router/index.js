@@ -1,9 +1,11 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import {
+  createRouter,
+  createWebHistory
+} from 'vue-router'
 import Login from '../views/Login.vue'
 import Home from '../views/Home.vue' // 直接导入 Home 组件
 
-const routes = [
-  {
+const routes = [{
     path: '/login',
     name: 'Login',
     component: Login
@@ -11,7 +13,9 @@ const routes = [
   {
     path: '/',
     component: Home, // Home 作为布局组件
-    meta: { requiresAuth: true },
+    meta: {
+      requiresAuth: true
+    },
     children: [
       // 添加一个默认子路由，用于显示 Home 页面的初始内容
       // 如果你希望 '/' 直接显示 Home 的欢迎信息，可以不加这个默认子路由
@@ -29,26 +33,30 @@ const routes = [
         path: '', // 匹配 '/'
         name: 'HomeContent', // 给它一个名字，虽然可能不直接导航到它
         // 注意：这里不需要 component，因为 Home.vue 自身会处理 '/' 路径的显示逻辑
-        meta: { requiresAuth: true }
+        meta: {
+          requiresAuth: true
+        }
       },
       {
         path: 'monitor/realtime', // 相对路径，完整路径是 /monitor/realtime
         name: 'MonitorRealtime',
         component: () => import('../views/monitor/RealTimeData.vue'), // 确保此组件存在
-        meta: { requiresAuth: true }
+        meta: {
+          requiresAuth: true
+        }
       },
       {
         path: 'data/history', // 相对路径，完整路径是 /data/history
         name: 'DataHistory',
         component: () => import('../views/datacenter/HistoricalData.vue'), // 确保此组件存在
-        meta: { requiresAuth: true }
+        meta: {
+          requiresAuth: true
+        }
       },
       {
         path: 'data/alarm', // 相对路径，完整路径是 /data/alarm
         name: 'DataAlarm',
-        // component: () => import('../views/data/AlarmData.vue'), // 替换为实际组件
-        component: () => import('../views/monitor/RealTimeData.vue'), // 临时用 RealTimeData 代替，你需要创建 AlarmData.vue
-        meta: { requiresAuth: true }
+        component: () => import('../views/datacenter/AlarmData.vue'), // 使用新创建的AlarmData组件        meta: { requiresAuth: true }
       }
       // ...可以添加更多子路由
     ]
@@ -76,7 +84,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   // 测试模式标志，设为true表示跳过登录验证
   const isTestMode = false; // 将测试模式设置为 false
-  
+
   if (isTestMode) {
     // 测试模式下，自动放行所有路由
     // 模拟一个用户信息
@@ -88,9 +96,9 @@ router.beforeEach((to, from, next) => {
     }
     // 检查是否尝试访问根路径下的不存在子路由，如果是，重定向到根路径
     if (to.matched.length === 0 && to.path !== '/login') {
-       console.warn(`路由未匹配: ${to.path}, 重定向到 /`);
-       next('/');
-       return;
+      console.warn(`路由未匹配: ${to.path}, 重定向到 /`);
+      next('/');
+      return;
     }
 
     next();
@@ -109,8 +117,7 @@ router.beforeEach((to, from, next) => {
     // 已登录但访问不存在的路径，重定向到首页
     console.warn(`路由未匹配: ${to.path}, 重定向到 /`);
     next('/');
-  }
-   else {
+  } else {
     next()
   }
 })
