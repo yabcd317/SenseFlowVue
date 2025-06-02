@@ -286,7 +286,7 @@ export default {
 
           this.deviceData = {
             deviceName: `设备${deviceRawData.deviceId || deviceId}`,
-            status: deviceRawData.status === 0 ? '在线' : '离线',
+            status: deviceRawData.status === 1 ? '在线' : '离线',
             values: values
           };
         } else if (result.code !== 1) {

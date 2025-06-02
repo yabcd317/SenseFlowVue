@@ -171,7 +171,7 @@ export default {
                 const deviceId = item.deviceId;
                 deviceData[deviceId] = {
                   timestamp: new Date().toISOString(),
-                  status: item.status === 0 ? '在线' : '离线',
+                  status: item.status === 1 ? '在线' : '离线',
                   values: {}
                 };
 

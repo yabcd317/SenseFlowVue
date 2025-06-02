@@ -54,8 +54,8 @@
       
       <div class="info-item">
         <span class="info-label">设备状态：</span>
-        <span :class="['status-value', deviceInfo.status === 0 ? 'status-online' : 'status-offline']">
-          {{ deviceInfo.status === 0 ? '在线' : '离线' }}
+        <span :class="['status-value', deviceInfo.status === 1 ? 'status-online' : 'status-offline']">
+          {{ deviceInfo.status === 1 ? '在线' : '离线' }}
         </span>
       </div>
     </div>

@@ -55,14 +55,16 @@
             <p>暂无历史数据，请调整查询条件后重试</p>
           </div>
           <div v-else class="data-table-wrapper">
-            <el-table :data="historyData" border style="width: 100%" height="calc(100% - 50px)">
-              <el-table-column prop="factorName" label="监测因子" width="150" />
-              <el-table-column prop="text" label="数值">
-                <template #default="scope">
-                  {{ scope.row.text }} {{ scope.row.unit }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="recordTimeStr" label="记录时间" width="180" />
+            <el-table :data="groupedData" border style="width: 100%" height="calc(100% - 50px)">
+              <el-table-column 
+                v-for="column in tableColumns" 
+                :key="column.prop"
+                :prop="column.prop"
+                :label="column.label"
+                :width="column.width"
+                :min-width="column.minWidth"
+                :fixed="column.fixed"
+              />
             </el-table>
             
             <div class="pagination-container">
@@ -437,6 +439,71 @@ onMounted(() => {
 onUnmounted(() => {
   console.log('[HistoricalData] Component unmounted, removing devices-updated listener.');
   eventBus.off('devices-updated', handleDevicesUpdate);
+});
+
+// 添加一个计算属性，用于将数据按时间和因子重组
+const groupedData = computed(() => {
+  if (!historyData.value || historyData.value.length === 0) return [];
+  
+  // 1. 获取所有唯一的时间点
+  const timePoints = [...new Set(historyData.value.map(item => item.recordTimeStr))];
+  timePoints.sort(); // 确保时间点按顺序排列
+  
+  // 2. 获取所有唯一的因子
+  const uniqueFactors = [...new Set(historyData.value.map(item => item.factorName))];
+  
+  // 3. 创建一个映射，用于快速查找特定时间点和因子的数据
+  const dataMap = {};
+  historyData.value.forEach(item => {
+    if (!dataMap[item.recordTimeStr]) {
+      dataMap[item.recordTimeStr] = {};
+    }
+    dataMap[item.recordTimeStr][item.factorName] = {
+      value: item.text,
+      unit: item.unit
+    };
+  });
+  
+  // 4. 构建重组后的数据
+  return timePoints.map(time => {
+    const row = { recordTimeStr: time };
+    
+    uniqueFactors.forEach(factor => {
+      const data = dataMap[time] && dataMap[time][factor];
+      row[factor] = data ? `${data.value} ${data.unit}` : '-';
+    });
+    
+    return row;
+  });
+});
+
+// 添加一个计算属性，用于生成表格的列配置
+const tableColumns = computed(() => {
+  if (!historyData.value || historyData.value.length === 0) return [];
+  
+  // 获取所有唯一的因子
+  const uniqueFactors = [...new Set(historyData.value.map(item => item.factorName))];
+  
+  // 创建列配置
+  const columns = [
+    {
+      prop: 'recordTimeStr',
+      label: '记录时间',
+      width: '180px',
+      fixed: 'left'
+    }
+  ];
+  
+  // 为每个因子添加一列
+  uniqueFactors.forEach(factor => {
+    columns.push({
+      prop: factor,
+      label: factor,
+      minWidth: '120px'
+    });
+  });
+  
+  return columns;
 });
 </script>
 <style scoped>

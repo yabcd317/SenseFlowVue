@@ -57,7 +57,7 @@ export default {
           devices.value = result.data.map(device => ({
             id: device.id,
             deviceName: device.deviceName,
-            online: device.status === 0
+            online: device.status === 1
           }));
         } else {
           console.error('获取设备列表API错误:', result.msg);
