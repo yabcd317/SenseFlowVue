@@ -569,7 +569,7 @@ h3 {
 }
 
 h2 {
-  margin: 20px;
+  margin: 0 20px;
   border-bottom: 2px solid #3498db;
   padding-bottom: 10px;
   position: relative; /* 添加相对定位 */
@@ -583,7 +583,7 @@ h2 {
   align-items: center;
   justify-content: space-between;
   padding: 0 15px;
-  margin-bottom: 60px; /* 增加底部间距，为h2留出空间 */
+  margin-bottom: 42px; /* 增加底部间距，为h2留出空间 */
 }
 
 h3 {
