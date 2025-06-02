@@ -55,7 +55,7 @@
             <p>暂无历史数据，请调整查询条件后重试</p>
           </div>
           <div v-else class="data-table-wrapper">
-            <el-table :data="groupedData" border style="width: 100%" height="calc(100% - 50px)">
+            <el-table :data="groupedData" border style="width: 100%">
               <el-table-column 
                 v-for="column in tableColumns" 
                 :key="column.prop"
@@ -572,6 +572,18 @@ h2 {
   margin: 20px;
   border-bottom: 2px solid #3498db;
   padding-bottom: 10px;
+  position: relative; /* 添加相对定位 */
+  z-index: 10; /* 确保h2在上层 */
+  background-color: #ffffff; /* 添加背景色，防止内容透过 */
+}
+
+.data-display-area-top {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  margin-bottom: 60px; /* 增加底部间距，为h2留出空间 */
 }
 
 h3 {
@@ -648,6 +660,21 @@ h3 {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+/* 添加以下样式来隐藏表格滚动条 */
+:deep(.el-table__body-wrapper::-webkit-scrollbar) {
+  display: none;
+}
+
+:deep(.el-table__body-wrapper) {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* 修改Element Plus滚动条样式 */
+:deep(.el-scrollbar__bar.is-vertical>div) { 
+   width: 0; 
 }
 
 .pagination-container {
