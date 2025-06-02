@@ -114,6 +114,11 @@ export default {
             { name: '历史数据', path: '/data/history' },
             { name: '报警数据', path: '/data/alarm' }
           ]
+        },
+        {
+          name: '用户管理',
+          path: '/management',
+          expanded: false
         }
       ],
       activeMenuIndex: 0,
@@ -238,6 +243,20 @@ export default {
         this.selectedDevice = devices[0];
         this.selectedDeviceId = devices[0].id;
         this.fetchDeviceData(devices[0].id);
+        
+        // 如果设备有位置信息，更新地图中心点
+        if (devices[0].useMarkLocation === 1 && devices[0].lat && devices[0].lng) {
+          this.center = [devices[0].lng, devices[0].lat];
+          if (this.map) {
+            // 更新地图标记点
+            this.map.clearMap(); // 清除现有标记
+            const marker = new AMap.Marker({
+              position: [devices[0].lng, devices[0].lat]
+            });
+            this.map.add(marker);
+            this.map.setCenter([devices[0].lng, devices[0].lat]);
+          }
+        }
       } else {
         this.selectedDevice = null;
         this.selectedDeviceId = null;

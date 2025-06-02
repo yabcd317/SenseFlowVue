@@ -57,7 +57,10 @@ export default {
           devices.value = result.data.map(device => ({
             id: device.id,
             deviceName: device.deviceName,
-            online: device.status === 1
+            online: device.status === 1,
+            lat: device.lat,
+            lng: device.lng,
+            useMarkLocation: device.useMarkLocation // 添加标记位置信息
           }));
         } else {
           console.error('获取设备列表API错误:', result.msg);

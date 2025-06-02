@@ -1,26 +1,24 @@
 <template>
   <div class="login-container">
     <div class="login-background"></div>
-
     <div class="login-box">
-      <h2>系统登录</h2>
-      <el-form :model="loginForm" :rules="rules" ref="loginFormRef" label-position="top">
+      <h2>登录</h2>
+      <el-form ref="loginFormRef" :model="loginForm" :rules="rules" label-width="100px">
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="loginForm.username" placeholder="请输入用户名" />
+          <el-input v-model="loginForm.username"></el-input>
         </el-form-item>
-
         <el-form-item label="密码" prop="password">
-          <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password />
+          <el-input type="password" v-model="loginForm.password"></el-input>
         </el-form-item>
-
-        <el-form-item>
-          <el-checkbox v-model="loginForm.remember">记住我</el-checkbox>
+        <el-form-item label="记住我">
+          <el-checkbox v-model="loginForm.remember"></el-checkbox>
         </el-form-item>
-
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="handleLogin" class="login-btn">
-            {{ loading ? '登录中...' : '登录' }}
-          </el-button>
+          <el-button type="primary" @click="handleLogin" :loading="loading">登录</el-button>
+        </el-form-item>
+        <!-- 添加错误提示 -->
+        <el-form-item v-if="errorMessage">
+          <p class="error-message">{{ errorMessage }}</p>
         </el-form-item>
       </el-form>
     </div>
@@ -31,22 +29,24 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { ElForm, ElFormItem, ElInput, ElCheckbox, ElButton } from 'element-plus'
 
 export default {
-  name: 'LoginPage',
+  components: {
+    ElForm,
+    ElFormItem,
+    ElInput,
+    ElCheckbox,
+    ElButton
+  },
   setup() {
-    const loginFormRef = ref(null)
     const router = useRouter()
-
+    const loginFormRef = ref(null)
     const loginForm = reactive({
       username: '',
       password: '',
       remember: false
     })
-
-    const loading = ref(false)
-
-    // 表单验证规则
     const rules = {
       username: [
         { required: true, message: '请输入用户名', trigger: 'blur' },
@@ -55,6 +55,8 @@ export default {
         { required: true, message: '请输入密码', trigger: 'blur' },
       ]
     }
+    const loading = ref(false)
+    const errorMessage = ref('')
 
     const handleLogin = async () => {
       if (!loginFormRef.value) return
@@ -97,7 +99,9 @@ export default {
         }
 
         if (result.code !== 1) {
-          throw new Error(result.msg || '登录失败')
+          // 根据失败信息弹出提示
+          errorMessage.value = result.msg || '登录失败'
+          return
         }
 
         const userData = result.data
@@ -118,7 +122,7 @@ export default {
         router.push('/')
       } catch (error) {
         console.error('登录错误:', error)
-        ElMessage.error(error.message || '登录失败')
+        errorMessage.value = error.message || '登录失败'
       } finally {
         loading.value = false
       }
@@ -137,6 +141,7 @@ export default {
       loginForm,
       rules,
       loading,
+      errorMessage,
       handleLogin
     }
   }
@@ -180,7 +185,6 @@ export default {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-
 }
 
 h2 {
@@ -191,5 +195,17 @@ h2 {
 
 .login-btn {
   width: 100%;
+}
+
+/* 确保提示信息不会被遮挡 */
+.el-message {
+  z-index: 1000;
+}
+
+/* 错误提示样式 */
+.error-message {
+  color: red;
+  font-size: 14px;
+  text-align: center;
 }
 </style>

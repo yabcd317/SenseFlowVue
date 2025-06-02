@@ -10,13 +10,14 @@ const routes = [{
     name: 'Login',
     component: Login
   },
+
   {
     path: '/',
     component: Home, // Home 作为布局组件
     meta: {
       requiresAuth: true
     },
-    children: [
+    children: [ 
       // 添加一个默认子路由，用于显示 Home 页面的初始内容
       // 如果你希望 '/' 直接显示 Home 的欢迎信息，可以不加这个默认子路由
       // 但保留 Home.vue 中的 v-if="isHomePage" 逻辑
@@ -56,7 +57,14 @@ const routes = [{
       {
         path: 'data/alarm', // 相对路径，完整路径是 /data/alarm
         name: 'DataAlarm',
-        component: () => import('../views/datacenter/AlarmData.vue'), // 使用新创建的AlarmData组件        meta: { requiresAuth: true }
+        component: () => import('../views/datacenter/AlarmData.vue'),
+        meta: { requiresAuth: true }
+      },
+      {
+        path: 'management', // 新增的用户管理页面路由
+        name: 'UserManagement',
+        component: () => import('../views/UserManagement.vue'), 
+        meta: { requiresAuth: true }
       }
       // ...可以添加更多子路由
     ]
@@ -83,7 +91,7 @@ const router = createRouter({
 // 路由守卫，检查用户是否已登录
 router.beforeEach((to, from, next) => {
   // 测试模式标志，设为true表示跳过登录验证
-  const isTestMode = false; // 将测试模式设置为 false
+  const isTestMode = true; // 改为 true 进行测试
 
   if (isTestMode) {
     // 测试模式下，自动放行所有路由
