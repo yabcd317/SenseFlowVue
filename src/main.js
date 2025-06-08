@@ -5,6 +5,9 @@ import App from './App.vue'
 import router from './router'
 import './style.css'
 
+// 导入 Element Plus 样式
+import 'element-plus/dist/index.css'
+
 // 引入高德地图
 import VueAMap, {
   initAMapApiLoader
@@ -18,8 +21,7 @@ initAMapApiLoader({
   v: '1.4.4'
 })
 
-const app = createApp(App)
+const app = createApp(App).use(router).mount('#app')
 app.use(router)
 app.use(VueAMap)
 app.mount('#app')
-createApp(App).use(router).mount('#app')

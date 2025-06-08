@@ -218,8 +218,7 @@ const fetchUsers = async (resetPage = false) => {
     loading.value = true
     globalFetchError.value = null
 
-    const response = await http.get(`/user/page?${params}`)
-    const result = await response.json()
+    const result = await http.get(`/user/page?${params}`)
 
     if (result.code === 1 && result.data) {
       userData.value = result.data.records || []
@@ -307,15 +306,13 @@ const submitUserForm = async () => {
     if (userForm.password) {
       submitData.password = userForm.password
     }
-
-    let response
+    let result 
     if (isEditMode.value) {
-      response = await http.put('/user', submitData)
+       result  = await http.put('/user', submitData)
     } else {
-      response = await http.post('/user', submitData)
+       result  = await http.post('/user', submitData)
     }
 
-    const result = await response.json()
 
     if (result.code === 1) {
       ElMessage.success(isEditMode.value ? '用户更新成功' : '用户创建成功')
@@ -345,8 +342,7 @@ const toggleUserStatus = async (user) => {
       status: newStatus,
     }
 
-    const response = await http.post('/user/status', status)
-    const result = await response.json()
+    const result = await http.post('/user/status', status)
 
     if (result.code === 1) {
       ElMessage.success(`用户${statusText}成功`)
@@ -369,8 +365,7 @@ const deleteUser = async (user) => {
       type: 'warning'
     })
 
-    const response = await http.delete(`/user/${user.id}`)
-    const result = await response.json()
+    const result = await http.delete(`/user/${user.id}`)
 
     if (result.code === 1) {
       ElMessage.success('用户删除成功')
