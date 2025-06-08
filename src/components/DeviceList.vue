@@ -45,8 +45,8 @@ export default {
 
     const fetchDevices = async () => {
       try {
-        const response = await http.get('/senser/deviceList')
-        const result = await response.json()
+      
+        const result = await http.get('/senser/deviceList')
 
         if (result.code === 1) {
           devices.value = result.data.map(device => ({

@@ -36,7 +36,9 @@ export const httpRequest = async (url, options = {}) => {
       throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`)
     }
     
-    return response
+    // 自动解析JSON响应
+    const data = await response.json()
+    return data
   } catch (error) {
     console.error('HTTP请求失败:', error)
     throw error
