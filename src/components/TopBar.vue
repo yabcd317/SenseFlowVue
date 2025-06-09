@@ -26,7 +26,7 @@ export default {
         const response = await fetch('/sense/logout', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`
+            'token': `${token}`
           }
         });
         

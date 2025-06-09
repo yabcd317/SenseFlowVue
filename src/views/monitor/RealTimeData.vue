@@ -44,12 +44,12 @@
             </p>
             <p><strong>更新时间:</strong> {{ formatTimestamp(modalData.timestamp) }}</p>
           </div>
-          <div class="detail-chart">
+      <!--     <div class="detail-chart">
             <div class="chart-placeholder">
               <p>历史数据趋势图</p>
               <p class="placeholder-text">此处将显示数据趋势图表</p>
             </div>
-          </div>
+          </div> -->
         </div>
       </div>
     </div>
