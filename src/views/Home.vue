@@ -75,6 +75,7 @@ import eventBus from '../eventBus';
 import DeviceBlock from '../components/DeviceBlock.vue';
 import { defineComponent } from "vue";
 import { ElAmap } from "@vuemap/vue-amap";
+import { http } from '../utils/http.js'; // 添加http工具导入
 
 export default {
   name: 'HomePage',
@@ -124,15 +125,16 @@ export default {
       activeMenuIndex: 0,
       activeSubMenuIndex: -1,
       deviceStats: {
-        total: 6,
-        online: 5,
+        total: 10,
+        online: 6,
         alarm: 0,
-        offline: 1
+        offline: 4
       },
       selectedDeviceId: null,
       selectedDevice: null, 
       deviceData: null,
       loading: false,
+      statusTimer: null // 添加定时器变量
     }
   },
   computed: {
@@ -230,13 +232,57 @@ export default {
         this.menuItems.forEach(item => item.expanded = false);
       }
     },
-    fetchDeviceStats() {
-      this.deviceStats = {
-        total: 6,
-        online: 5,
-        alarm: 0,
-        offline: 1
-      };
+    // 修改fetchDeviceStats方法
+    async fetchDeviceStats() {
+      try {
+        const result = await http.get('/senser/deviceStatus');
+        
+        if (result.code === 1 && result.data) {
+          this.deviceStats = {
+            total: result.data.total || 10,
+            online: result.data.online || 6,
+            alarm: result.data.alarm || 0,
+            offline: result.data.offline || 6
+          };
+        } else {
+          console.error('获取设备状态失败:', result.msg);
+          // 保持默认值
+          this.deviceStats = {
+            total: 0,
+            online: 0,
+            alarm: 0,
+            offline: 0
+          };
+        }
+      } catch (error) {
+        console.error('获取设备状态时发生错误:', error);
+        // 保持默认值
+        this.deviceStats = {
+          total: 0,
+          online: 0,
+          alarm: 0,
+          offline: 0
+        };
+      }
+    },
+    
+    // 添加启动定时器方法
+    startStatusTimer() {
+      // 立即获取一次数据
+      this.fetchDeviceStats();
+      
+      // 设置30秒定时器
+      this.statusTimer = setInterval(() => {
+        this.fetchDeviceStats();
+      }, 30000); // 30秒 = 30000毫秒
+    },
+    
+    // 添加停止定时器方法
+    stopStatusTimer() {
+      if (this.statusTimer) {
+        clearInterval(this.statusTimer);
+        this.statusTimer = null;
+      }
     },
     handleDevicesUpdated(devices) {
       if (devices && devices.length > 0) {
@@ -342,7 +388,9 @@ export default {
       this.user.username = '测试用户';
     }
     this.updateMenuState(this.$route.path);
-    this.fetchDeviceStats();
+    
+    // 启动设备状态定时器
+    this.startStatusTimer();
 
     eventBus.on('device-selected', this.handleDeviceSelected);
     eventBus.on('devices-updated', this.handleDevicesUpdated);
@@ -354,6 +402,9 @@ export default {
     }
   },
   beforeUnmount() {
+    // 清理定时器
+    this.stopStatusTimer();
+    
     eventBus.off('device-selected', this.handleDeviceSelected);
     eventBus.off('devices-updated', this.handleDevicesUpdated);
   },
