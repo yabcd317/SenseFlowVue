@@ -477,12 +477,22 @@ const tableColumns = computed(() => {
   return columns
 })
 
-// 新增：监听视图模式变化，渲染图表
-watch(viewMode, async (newMode) => {
-  if (newMode === 'chart' && historyData.value.length > 0) {
-    await nextTick()
-    renderChart()
-  } else if (newMode === 'table' && chartInstance) {
+// 监听视图模式变化，渲染图表
+watch(viewMode, async (newMode, oldMode) => {
+  if (newMode === 'chart') {
+    // 切换到图表模式时，如果当前数据是分页数据，重新获取所有数据
+    if (historyData.value.length > 0 && historyData.value.length <= pageSize.value * selectedFactors.value.length) {
+      // 重新获取完整数据
+      await fetchHistoricalData(true)
+    } else if (historyData.value.length > 0) {
+      // 如果已有完整数据，等待 DOM 更新后渲染
+      await nextTick()
+      setTimeout(() => {
+        renderChart()
+      }, 50)
+    }
+  } else if (oldMode === 'chart' && newMode === 'table' && chartInstance) {
+    // 切换到表格模式时销毁图表
     chartInstance.dispose()
     chartInstance = null
   }
@@ -496,9 +506,31 @@ watch(historyData, async (newData) => {
   }
 })
 
-// 新增：渲染图表函数
-const renderChart = () => {
-  if (!chartContainer.value || !historyData.value.length) return
+// 渲染图表函数
+const renderChart = async () => {
+  console.log('开始渲染图表，数据条数:', historyData.value.length)
+  
+  // 等待 DOM 更新
+  await nextTick()
+  
+  if (!chartContainer.value) {
+    console.error('图表容器未找到，等待 DOM 渲染')
+    // 再次等待并重试
+    setTimeout(async () => {
+      await nextTick()
+      if (chartContainer.value) {
+        renderChart()
+      } else {
+        console.error('图表容器仍未找到')
+      }
+    }, 100)
+    return
+  }
+  
+  if (!historyData.value.length) {
+    console.warn('没有数据可渲染')
+    return
+  }
 
   // 销毁之前的图表实例
   if (chartInstance) {
@@ -511,13 +543,16 @@ const renderChart = () => {
   // 处理数据
   const timePoints = [...new Set(historyData.value.map(item => item.recordTimeStr))]
   timePoints.sort()
+  
+  console.log('时间点数量:', timePoints.length)
 
   const uniqueFactors = [...new Set(historyData.value.map(item => item.factorName))]
-
+  console.log('因子数量:', uniqueFactors.length)
+  
   // 为每个因子创建数据系列
   const series = uniqueFactors.map(factor => {
     const factorData = timePoints.map(time => {
-      const dataPoint = historyData.value.find(item =>
+      const dataPoint = historyData.value.find(item => 
         item.recordTimeStr === time && item.factorName === factor
       )
       return dataPoint ? parseFloat(dataPoint.text) || 0 : null
@@ -548,11 +583,11 @@ const renderChart = () => {
       axisPointer: {
         type: 'cross'
       },
-      formatter: function (params) {
+      formatter: function(params) {
         let result = `${params[0].name}<br/>`
         params.forEach(param => {
           if (param.value !== null) {
-            const unit = historyData.value.find(item =>
+            const unit = historyData.value.find(item => 
               item.recordTimeStr === param.name && item.factorName === param.seriesName
             )?.unit || ''
             result += `${param.seriesName}: ${param.value} ${unit}<br/>`
@@ -577,7 +612,7 @@ const renderChart = () => {
       boundaryGap: false,
       data: timePoints,
       axisLabel: {
-        formatter: function (value) {
+        formatter: function(value) {
           // 只显示时间部分
           return value.split(' ')[1] || value
         },
