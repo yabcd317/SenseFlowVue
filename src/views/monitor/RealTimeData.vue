@@ -35,6 +35,11 @@
         </div>
         <div class="modal-body">
           <div class="detail-info">
+            <p>
+              <strong>设备ID:</strong> {{ modalData.deviceId }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              <strong>节点ID:</strong> {{ modalData.nodeId }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              <strong>寄存器ID:</strong> {{ modalData.registerId }}
+            </p>
             <p><strong>设备:</strong> {{ modalData.deviceName }}</p>
             <p><strong>监测项:</strong> {{ modalData.sensorName }}</p>
             <p><strong>当前值:</strong>
@@ -44,12 +49,12 @@
             </p>
             <p><strong>更新时间:</strong> {{ formatTimestamp(modalData.timestamp) }}</p>
           </div>
-      <!--     <div class="detail-chart">
+          <div class="detail-chart">
             <div class="chart-placeholder">
               <p>历史数据趋势图</p>
               <p class="placeholder-text">此处将显示数据趋势图表</p>
             </div>
-          </div> -->
+          </div>
         </div>
       </div>
     </div>
@@ -79,6 +84,8 @@ export default {
       deviceId: null,
       deviceName: '',
       sensorName: '',
+      nodeId: null,
+      registerId: null,
       value: null,
       unit: '',
       timestamp: '',
@@ -107,6 +114,8 @@ export default {
         modalData.deviceName = device.deviceName;
         modalData.sensorName = sensorName;
         modalData.value = valueObj.value;
+        modalData.nodeId = valueObj.nodeId;
+        modalData.registerId = valueObj.registerId;
         modalData.unit = valueObj.unit || '';
 
         const currentDeviceData = deviceData[device.id];
@@ -180,7 +189,10 @@ export default {
                     if (dataItem.functionName && dataItem.value !== undefined) {
                       deviceData[deviceId].values[dataItem.functionName] = {
                         value: dataItem.value,
-                        unit: dataItem.unit || ''
+                        unit: dataItem.unit || '',
+                        deviceId: dataItem.deviceId,
+                        nodeId: dataItem.nodeId,
+                        registerId: dataItem.registerId
                       };
                     }
                   });
