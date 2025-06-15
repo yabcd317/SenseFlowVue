@@ -47,12 +47,26 @@
                 {{ formatValueDisplay(modalData.value) }} {{ modalData.unit }}
               </span>
             </p>
-            <p><strong>更新时间:</strong> {{ formatTimestamp(modalData.timestamp) }}</p>
+            <p><strong>更新时间:</strong> {{ modalData.recordTimeStr }}</p>
           </div>
           <div class="detail-chart">
-            <div class="chart-placeholder">
+            <div class="chart-header">
               <p>历史数据趋势图</p>
-              <p class="placeholder-text">此处将显示数据趋势图表</p>
+              <button 
+                class="trend-chart-btn" 
+                @click="loadHistoryData"
+                :disabled="loadingChart"
+              >
+                {{ loadingChart ? '加载中...' : '显示历史趋势' }}
+              </button>
+            </div>
+            <div 
+              v-if="showChart" 
+              ref="chartContainer" 
+              class="chart-container"
+            ></div>
+            <div v-else class="chart-placeholder">
+              <p class="placeholder-text">点击上方按钮查看最近30条历史数据趋势</p>
             </div>
           </div>
         </div>
@@ -62,7 +76,8 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'; // Removed computed as it's not used
+import { ref, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import * as echarts from 'echarts';
 import eventBus from '../../eventBus';
 import DeviceList from '../../components/DeviceList.vue';
 import DeviceBlock from '../../components/DeviceBlock.vue';
@@ -80,15 +95,20 @@ export default {
     const globalFetchError = ref(null);
 
     const showModal = ref(false);
+    const showChart = ref(false);
+    const loadingChart = ref(false);
+    const chartContainer = ref(null);
+    let chartInstance = null;
+    
     const modalData = reactive({
       deviceId: null,
       deviceName: '',
       sensorName: '',
       nodeId: null,
+      recordTimeStr: '',
       registerId: null,
       value: null,
       unit: '',
-      timestamp: '',
       title: ''
     });
 
@@ -115,11 +135,11 @@ export default {
         modalData.sensorName = sensorName;
         modalData.value = valueObj.value;
         modalData.nodeId = valueObj.nodeId;
+        modalData.recordTimeStr = valueObj.recordTimeStr;
         modalData.registerId = valueObj.registerId;
         modalData.unit = valueObj.unit || '';
 
         const currentDeviceData = deviceData[device.id];
-        modalData.timestamp = currentDeviceData?.timestamp || new Date().toISOString();
         modalData.title = `${sensorName} 详情`;
 
         console.log('[RealTimeData] Modal data prepared:', JSON.parse(JSON.stringify(modalData)));
@@ -131,8 +151,161 @@ export default {
       }
     };
 
+    const loadHistoryData = async () => {
+      if (!modalData.deviceId || !modalData.nodeId || !modalData.registerId) {
+        globalFetchError.value = '缺少必要的参数，无法获取历史数据';
+        return;
+      }
+
+      loadingChart.value = true;
+      try {
+        const response = await fetch('/senser/deviceLast30Data', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            deviceId: modalData.deviceId,
+            nodeId: modalData.nodeId,
+            registerId: modalData.registerId
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.code === 1 && result.data && Array.isArray(result.data)) {
+          showChart.value = true;
+          await nextTick();
+          console.log('chartContainer.value after nextTick:', chartContainer.value); // 添加日志
+          renderChart(result.data);
+        } else {
+          throw new Error(result.msg || '获取历史数据失败');
+        }
+      } catch (error) {
+        console.error('获取历史数据失败:', error);
+        globalFetchError.value = `获取历史数据失败: ${error.message}`;
+      } finally {
+        loadingChart.value = false;
+      }
+    };
+
+    const renderChart = (data) => {
+      console.log('renderChart called, chartContainer.value:', chartContainer.value); // 添加日志
+      if (!chartContainer.value) {
+        console.error('chartContainer is null, cannot render chart.'); // 添加错误日志
+        return;
+      }
+
+      // 销毁之前的图表实例
+      if (chartInstance) {
+        chartInstance.dispose();
+      }
+
+      // 处理数据
+      const sortedData = data.sort((a, b) => new Date(a.recordTimeStr) - new Date(b.recordTimeStr));
+      const times = sortedData.map(item => item.recordTimeStr);
+      const values = sortedData.map(item => item.value);
+      const unit = data[0]?.unit || modalData.unit || '';
+
+      // 创建图表实例
+      chartInstance = echarts.init(chartContainer.value);
+
+      const option = {
+        title: {
+          text: `${modalData.sensorName} 历史趋势`,
+          left: 'center',
+          textStyle: {
+            fontSize: 16,
+            color: '#333'
+          }
+        },
+        tooltip: {
+          trigger: 'axis',
+          formatter: function(params) {
+            const param = params[0];
+            return `${param.name}<br/>${param.seriesName}: ${param.value} ${unit}`;
+          }
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '3%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          boundaryGap: false,
+          data: times,
+          axisLabel: {
+            formatter: function(value) {
+              // 只显示时间部分
+              return value.split(' ')[1] || value;
+            },
+            rotate: 45
+          }
+        },
+        yAxis: {
+          type: 'value',
+          name: unit,
+          nameTextStyle: {
+            color: '#666'
+          }
+        },
+        series: [{
+          name: modalData.sensorName,
+          type: 'line',
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: {
+            color: '#3498db',
+            width: 2
+          },
+          itemStyle: {
+            color: '#3498db'
+          },
+          areaStyle: {
+            color: {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
+              colorStops: [{
+                offset: 0,
+                color: 'rgba(52, 152, 219, 0.3)'
+              }, {
+                offset: 1,
+                color: 'rgba(52, 152, 219, 0.1)'
+              }]
+            }
+          },
+          data: values
+        }]
+      };
+
+      chartInstance.setOption(option);
+
+      // 监听窗口大小变化
+      const resizeHandler = () => {
+        if (chartInstance) {
+          chartInstance.resize();
+        }
+      };
+      window.addEventListener('resize', resizeHandler);
+    };
+
     const closeModal = () => {
       showModal.value = false;
+      showChart.value = false;
+      if (chartInstance) {
+        chartInstance.dispose();
+        chartInstance = null;
+      }
     };
 
     const formatValueDisplay = (value) => {
@@ -179,7 +352,6 @@ export default {
               if (item && item.deviceId !== undefined) {
                 const deviceId = item.deviceId;
                 deviceData[deviceId] = {
-                  timestamp: new Date().toISOString(),
                   status: item.status === 1 ? '在线' : '离线',
                   values: {}
                 };
@@ -192,7 +364,8 @@ export default {
                         unit: dataItem.unit || '',
                         deviceId: dataItem.deviceId,
                         nodeId: dataItem.nodeId,
-                        registerId: dataItem.registerId
+                        registerId: dataItem.registerId,
+                        recordTimeStr: dataItem.recordTimeStr
                       };
                     }
                   });
@@ -239,13 +412,13 @@ export default {
       fetchDataForSelectedDevices(newSelectedIds);
     };
 
-    let refreshInterval = null; // Declare refreshInterval here
+    let refreshInterval = null; 
 
     onMounted(() => {
       console.log('[RealTimeData] Component mounted, listening for devices-updated event.');
       eventBus.on('devices-updated', handleDevicesUpdate);
 
-      refreshInterval = setInterval(() => { // Assign to the declared variable
+      refreshInterval = setInterval(() => {
         const selectedIds = selectedDevices.value.map(d => d.id);
         if (selectedIds.length > 0) {
           fetchDataForSelectedDevices(selectedIds);
@@ -254,7 +427,7 @@ export default {
     });
 
     onUnmounted(() => {
-      if (refreshInterval) { // Check if interval is set before clearing
+      if (refreshInterval) { 
         clearInterval(refreshInterval);
       }
       console.log('[RealTimeData] Component unmounted, removing devices-updated listener.');
@@ -262,17 +435,8 @@ export default {
       document.body.style.overflow = '';
     });
 
-    const formatTimestamp = (isoString) => {
-      if (!isoString) return 'N/A';
-      try {
-        return new Date(isoString).toLocaleString();
-      } catch (e) {
-        return isoString;
-      }
-    };
 
-    // This function seems to be a duplicate or very similar to formatValueDisplay
-    // Considering removal or merging if formatValueDisplay serves the purpose
+
     const formatValue = (valueObj) => {
       if (valueObj !== undefined && valueObj !== null) {
         if (typeof valueObj === 'object') {
@@ -291,13 +455,16 @@ export default {
       loadingData,
       deviceData,
       globalFetchError,
-      formatTimestamp,
-      formatValue, // Kept for now, will analyze further
+      formatValue,
       showModal,
       modalData,
       showDetailModal,
       closeModal,
-      formatValueDisplay
+      formatValueDisplay,
+      showChart,
+      loadingChart,
+      chartContainer,
+      loadHistoryData
     };
   }
 }
@@ -467,6 +634,47 @@ h2 {
   padding-top: 20px;
 }
 
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.chart-header p {
+  margin: 0;
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #333;
+}
+
+.trend-chart-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.3s;
+}
+
+.trend-chart-btn:hover:not(:disabled) {
+  background-color: #2980b9;
+}
+
+.trend-chart-btn:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.chart-container {
+  width: 100%;
+  height: 400px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
 .chart-placeholder {
   text-align: center;
   padding: 30px;
@@ -475,14 +683,11 @@ h2 {
   border: 1px dashed #ddd;
 }
 
-.chart-placeholder p {
-  margin: 5px 0;
-  color: #777;
-}
-
 .chart-placeholder .placeholder-text {
   font-style: italic;
   font-size: 0.9em;
+  color: #777;
+  margin: 0;
 }
 
 /* Scrollbar styling for modal body if needed */

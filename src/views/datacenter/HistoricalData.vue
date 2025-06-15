@@ -5,42 +5,24 @@
       <div class="data-display-area-top">
         <!-- 设备因子选择区域 -->
         <div class="factor-tags-container">
-          <el-select 
-            v-model="selectedFactors" 
-            multiple 
-            collapse-tags 
-            :max-collapse-tags="1"
-            placeholder="请选择监测因子" 
-            style="width: 100%" 
-            class="single-line-select"
-          >
-            <div style="display: flex; justify-content: space-between; padding: 5px 12px; border-bottom: 1px solid #EBEEF5;">
+          <el-select v-model="selectedFactors" multiple collapse-tags :max-collapse-tags="1" placeholder="请选择监测因子"
+            style="width: 100%" class="single-line-select">
+            <div
+              style="display: flex; justify-content: space-between; padding: 5px 12px; border-bottom: 1px solid #EBEEF5;">
               <el-checkbox v-model="checkAll" :indeterminate="isIndeterminate" @change="handleCheckAll">
                 全选
               </el-checkbox>
               <el-button size="small" @click="clearSelection" type="text">清空</el-button>
             </div>
-            <el-option 
-              v-for="factor in deviceFactors" 
-              :key="factor.factorId" 
-              :label="`${selectedDevices[0]?.deviceName}-${factor.name}`"
-              :value="factor.factorId"
-            />
+            <el-option v-for="factor in deviceFactors" :key="factor.factorId"
+              :label="`${selectedDevices[0]?.deviceName}-${factor.name}`" :value="factor.factorId" />
           </el-select>
         </div>
-        
+
         <!-- 日期范围选择器 -->
         <div class="date-range-container">
-          <el-date-picker 
-            v-model="date" 
-            type="datetimerange" 
-            unlink-panels
-            range-separator="-" 
-            start-placeholder="开始日期"
-            end-placeholder="结束日期" 
-            :shortcuts="shortcuts" 
-            @change="handleDateChange" 
-          />
+          <el-date-picker v-model="date" type="datetimerange" unlink-panels range-separator="-" start-placeholder="开始日期"
+            end-placeholder="结束日期" :shortcuts="shortcuts" @change="handleDateChange" />
         </div>
 
         <!-- 按钮区域 -->
@@ -48,18 +30,20 @@
           <el-button type="primary" @click="() => fetchHistoricalData(true)">查询</el-button>
         </div>
       </div>
-      
-      <h2>历史数据查询</h2>
-
+      <div class="historical-data-title">
+        <h2>历史数据查询</h2>
+      </div>
       <div v-if="globalFetchError" class="global-error-message">
         <p>{{ globalFetchError }}</p>
       </div>
-      
+
       <div v-if="selectedDevices && selectedDevices.length > 0" class="devices-container">
         <!-- 历史数据展示区域 -->
         <div class="history-data-container">
           <div v-if="loading" class="loading-data">
-            <el-icon class="is-loading"><Loading /></el-icon>
+            <el-icon class="is-loading">
+              <Loading />
+            </el-icon>
             <span>加载数据中...</span>
           </div>
           <div v-else-if="historyData.length === 0" class="no-data">
@@ -67,32 +51,19 @@
           </div>
           <div v-else class="data-table-wrapper">
             <el-table :data="groupedData" border style="width: 100%">
-              <el-table-column 
-                v-for="column in tableColumns" 
-                :key="column.prop"
-                :prop="column.prop"
-                :label="column.label"
-                :width="column.width"
-                :min-width="column.minWidth"
-                :fixed="column.fixed"
-              />
+              <el-table-column v-for="column in tableColumns" :key="column.prop" :prop="column.prop"
+                :label="column.label" :width="column.width" :min-width="column.minWidth" :fixed="column.fixed" />
             </el-table>
-            
+
             <div class="pagination-container">
-              <el-pagination
-                v-model:current-page="currentPage"
-                v-model:page-size="pageSize"
-                :page-sizes="[10, 20, 50, 100]"
-                layout="total, sizes, prev, pager, next, jumper"
-                :total="totalRecords"
-                @size-change="handleSizeChange"
-                @current-change="handlePageChange"
-              />
+              <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
+                :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next, jumper" :total="totalRecords"
+                @size-change="handleSizeChange" @current-change="handlePageChange" />
             </div>
           </div>
         </div>
       </div>
-      
+
       <div v-else class="no-device-selected">
         <p>请从右侧设备列表中选择设备以查询历史数据。</p>
       </div>
@@ -211,7 +182,7 @@ const clearSelection = () => {
 // 监听选中因子变化
 watch(selectedFactors, (newFactors) => {
   console.log('[HistoricalData] 选中的因子已更新:', newFactors)
-  
+
   if (deviceFactors.value.length > 0) {
     const checkedCount = newFactors.length
     checkAll.value = checkedCount === deviceFactors.value.length
@@ -276,7 +247,7 @@ const handleDevicesUpdate = (devices) => {
 // 格式化日期时间
 const formatDateTime = (date) => {
   if (!date) return ''
-  
+
   const d = new Date(date)
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')
@@ -284,7 +255,7 @@ const formatDateTime = (date) => {
   const hours = String(d.getHours()).padStart(2, '0')
   const minutes = String(d.getMinutes()).padStart(2, '0')
   const seconds = String(d.getSeconds()).padStart(2, '0')
-  
+
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
@@ -293,30 +264,30 @@ const fetchHistoricalData = async (resetPage = false) => {
   if (resetPage) {
     currentPage.value = 1
   }
-  
+
   if (!selectedDevices.value || selectedDevices.value.length === 0) {
     ElMessage.warning('请选择设备')
     return
   }
-  
+
   if (!selectedFactors.value || selectedFactors.value.length === 0) {
     ElMessage.warning('请选择监测因子')
     return
   }
-  
+
   if (!date.value || !date.value[0] || !date.value[1]) {
     ElMessage.warning('请选择日期范围')
     return
   }
-  
+
   const deviceId = selectedDevices.value[0].id
   const startTime = formatDateTime(date.value[0])
   const endTime = formatDateTime(date.value[1])
-  
+
   const factorCount = selectedFactors.value.length
   const adjustedPage = Math.ceil(currentPage.value / factorCount) || 1
   const adjustedPageSize = pageSize.value * factorCount
-  
+
   const requestData = {
     deviceId: deviceId,
     factorIds: selectedFactors.value,
@@ -325,9 +296,9 @@ const fetchHistoricalData = async (resetPage = false) => {
     page: adjustedPage,
     pageSize: adjustedPageSize
   }
-  
+
   console.log('发送历史数据请求:', requestData)
-  
+
   try {
     loading.value = true
     globalFetchError.value = null
@@ -338,13 +309,13 @@ const fetchHistoricalData = async (resetPage = false) => {
       },
       body: JSON.stringify(requestData)
     })
-    
+
     if (!response.ok) {
       throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`)
     }
-    
+
     const result = await response.json()
-    
+
     if (result.code === 1 && result.data) {
       console.log('[HistoricalData] 成功获取历史数据:', result.data)
       historyData.value = result.data.records || []
@@ -388,12 +359,12 @@ onUnmounted(() => {
 // 计算属性 - 重组数据按时间和因子
 const groupedData = computed(() => {
   if (!historyData.value || historyData.value.length === 0) return []
-  
+
   const timePoints = [...new Set(historyData.value.map(item => item.recordTimeStr))]
   timePoints.sort()
-  
+
   const uniqueFactors = [...new Set(historyData.value.map(item => item.factorName))]
-  
+
   const dataMap = {}
   historyData.value.forEach(item => {
     if (!dataMap[item.recordTimeStr]) {
@@ -404,15 +375,15 @@ const groupedData = computed(() => {
       unit: item.unit
     }
   })
-  
+
   return timePoints.map(time => {
     const row = { recordTimeStr: time }
-    
+
     uniqueFactors.forEach(factor => {
       const data = dataMap[time] && dataMap[time][factor]
       row[factor] = data ? `${data.value} ${data.unit}` : '-'
     })
-    
+
     return row
   })
 })
@@ -420,9 +391,9 @@ const groupedData = computed(() => {
 // 计算属性 - 生成表格列配置
 const tableColumns = computed(() => {
   if (!historyData.value || historyData.value.length === 0) return []
-  
+
   const uniqueFactors = [...new Set(historyData.value.map(item => item.factorName))]
-  
+
   const columns = [
     {
       prop: 'recordTimeStr',
@@ -431,7 +402,7 @@ const tableColumns = computed(() => {
       fixed: 'left'
     }
   ]
-  
+
   uniqueFactors.forEach(factor => {
     columns.push({
       prop: factor,
@@ -439,7 +410,7 @@ const tableColumns = computed(() => {
       minWidth: '120px'
     })
   })
-  
+
   return columns
 })
 </script>
@@ -486,7 +457,7 @@ const tableColumns = computed(() => {
   padding: 15px;
 }
 
-h2 {
+.historical-data-title {
   color: #2c3e50;
   margin: 0 20px;
   border-bottom: 2px solid #3498db;
@@ -526,7 +497,8 @@ h2 {
   overflow: hidden;
 }
 
-.loading-data, .no-data {
+.loading-data,
+.no-data {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -624,8 +596,8 @@ h2 {
   scrollbar-width: none;
 }
 
-:deep(.el-scrollbar__bar.is-vertical>div) { 
-   width: 0; 
+:deep(.el-scrollbar__bar.is-vertical>div) {
+  width: 0;
 }
 
 :deep(.el-date-editor.el-input__wrapper) {
