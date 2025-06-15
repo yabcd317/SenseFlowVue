@@ -31,7 +31,16 @@
         </div>
       </div>
       <div class="historical-data-title">
-        <h2>历史数据查询</h2>
+        <h2 style="white-space:nowrap;display: inline;">历史数据查询</h2>
+        <el-button-group class="view-toggle-buttons">
+          <el-button :type="viewMode === 'table' ? 'primary' : 'default'" @click="viewMode = 'table'" size="small">
+            表格
+          </el-button>
+          <el-button :type="viewMode === 'chart' ? 'primary' : 'default'" @click="viewMode = 'chart'" size="small">
+            折线图
+          </el-button>
+        </el-button-group>
+
       </div>
       <div v-if="globalFetchError" class="global-error-message">
         <p>{{ globalFetchError }}</p>
@@ -49,7 +58,8 @@
           <div v-else-if="historyData.length === 0" class="no-data">
             <p>暂无历史数据，请调整查询条件后重试</p>
           </div>
-          <div v-else class="data-table-wrapper">
+          <!-- 表格视图 -->
+          <div v-else-if="viewMode === 'table'" class="data-table-wrapper">
             <el-table :data="groupedData" border style="width: 100%">
               <el-table-column v-for="column in tableColumns" :key="column.prop" :prop="column.prop"
                 :label="column.label" :width="column.width" :min-width="column.minWidth" :fixed="column.fixed" />
@@ -60,6 +70,10 @@
                 :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next, jumper" :total="totalRecords"
                 @size-change="handleSizeChange" @current-change="handlePageChange" />
             </div>
+          </div>
+          <!-- 折线图视图 -->
+          <div v-else-if="viewMode === 'chart'" class="chart-wrapper">
+            <div ref="chartContainer" class="chart-container"></div>
           </div>
         </div>
       </div>
@@ -77,8 +91,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
 import eventBus from '../../eventBus'
 import DeviceList from '../../components/DeviceList.vue'
 
@@ -96,6 +111,9 @@ const totalRecords = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const loading = ref(false)
+const viewMode = ref('table') // 新增：视图模式
+const chartContainer = ref(null) // 新增：图表容器引用
+let chartInstance = null // 新增：图表实例
 
 // 日期快捷选项
 const shortcuts = [
@@ -285,16 +303,46 @@ const fetchHistoricalData = async (resetPage = false) => {
   const endTime = formatDateTime(date.value[1])
 
   const factorCount = selectedFactors.value.length
-  const adjustedPage = Math.ceil(currentPage.value / factorCount) || 1
-  const adjustedPageSize = pageSize.value * factorCount
 
-  const requestData = {
-    deviceId: deviceId,
-    factorIds: selectedFactors.value,
-    startTime: startTime,
-    endTime: endTime,
-    page: adjustedPage,
-    pageSize: adjustedPageSize
+  // 根据视图模式决定分页参数
+  let requestData
+  if (viewMode.value === 'chart') {
+    // 图表模式：获取所有数据，根据时间段智能分配密度
+    const timeDiff = date.value[1] - date.value[0]
+    const hours = timeDiff / (1000 * 60 * 60)
+
+    let maxRecords
+    if (hours <= 1) {
+      maxRecords = 60 // 1小时内，最多60个点（每分钟一个点）
+    } else if (hours <= 24) {
+      maxRecords = 144 // 1天内，最多144个点（每10分钟一个点）
+    } else if (hours <= 168) {
+      maxRecords = 168 // 1周内，最多168个点（每小时一个点）
+    } else {
+      maxRecords = 720 // 超过1周，最多720个点（每小时一个点，30天）
+    }
+
+    requestData = {
+      deviceId: deviceId,
+      factorIds: selectedFactors.value,
+      startTime: startTime,
+      endTime: endTime,
+      page: 1,
+      pageSize: maxRecords * factorCount
+    }
+  } else {
+    // 表格模式：使用分页
+    const adjustedPage = Math.ceil(currentPage.value / factorCount) || 1
+    const adjustedPageSize = pageSize.value * factorCount
+
+    requestData = {
+      deviceId: deviceId,
+      factorIds: selectedFactors.value,
+      startTime: startTime,
+      endTime: endTime,
+      page: adjustedPage,
+      pageSize: adjustedPageSize
+    }
   }
 
   console.log('发送历史数据请求:', requestData)
@@ -319,8 +367,18 @@ const fetchHistoricalData = async (resetPage = false) => {
     if (result.code === 1 && result.data) {
       console.log('[HistoricalData] 成功获取历史数据:', result.data)
       historyData.value = result.data.records || []
-      totalRecords.value = Math.ceil((result.data.total || 0) / factorCount)
+
+      if (viewMode.value === 'table') {
+        totalRecords.value = Math.ceil((result.data.total || 0) / factorCount)
+      }
+
       ElMessage.success('历史数据获取成功')
+
+      // 如果当前是图表模式，渲染图表
+      if (viewMode.value === 'chart' && historyData.value.length > 0) {
+        await nextTick()
+        renderChart()
+      }
     } else {
       throw new Error(result.msg || '获取历史数据失败')
     }
@@ -354,6 +412,11 @@ onMounted(() => {
 onUnmounted(() => {
   console.log('[HistoricalData] Component unmounted, removing devices-updated listener.')
   eventBus.off('devices-updated', handleDevicesUpdate)
+
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
 })
 
 // 计算属性 - 重组数据按时间和因子
@@ -413,6 +476,134 @@ const tableColumns = computed(() => {
 
   return columns
 })
+
+// 新增：监听视图模式变化，渲染图表
+watch(viewMode, async (newMode) => {
+  if (newMode === 'chart' && historyData.value.length > 0) {
+    await nextTick()
+    renderChart()
+  } else if (newMode === 'table' && chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+})
+
+// 新增：监听历史数据变化，如果当前是图表模式则重新渲染
+watch(historyData, async (newData) => {
+  if (viewMode.value === 'chart' && newData.length > 0) {
+    await nextTick()
+    renderChart()
+  }
+})
+
+// 新增：渲染图表函数
+const renderChart = () => {
+  if (!chartContainer.value || !historyData.value.length) return
+
+  // 销毁之前的图表实例
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
+
+  // 创建图表实例
+  chartInstance = echarts.init(chartContainer.value)
+
+  // 处理数据
+  const timePoints = [...new Set(historyData.value.map(item => item.recordTimeStr))]
+  timePoints.sort()
+
+  const uniqueFactors = [...new Set(historyData.value.map(item => item.factorName))]
+
+  // 为每个因子创建数据系列
+  const series = uniqueFactors.map(factor => {
+    const factorData = timePoints.map(time => {
+      const dataPoint = historyData.value.find(item =>
+        item.recordTimeStr === time && item.factorName === factor
+      )
+      return dataPoint ? parseFloat(dataPoint.text) || 0 : null
+    })
+
+    return {
+      name: factor,
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      data: factorData,
+      connectNulls: false
+    }
+  })
+
+  const option = {
+    title: {
+      text: '历史数据趋势图',
+      left: 'center',
+      textStyle: {
+        fontSize: 16,
+        color: '#333'
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      },
+      formatter: function (params) {
+        let result = `${params[0].name}<br/>`
+        params.forEach(param => {
+          if (param.value !== null) {
+            const unit = historyData.value.find(item =>
+              item.recordTimeStr === param.name && item.factorName === param.seriesName
+            )?.unit || ''
+            result += `${param.seriesName}: ${param.value} ${unit}<br/>`
+          }
+        })
+        return result
+      }
+    },
+    legend: {
+      data: uniqueFactors,
+      top: 30
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: timePoints,
+      axisLabel: {
+        formatter: function (value) {
+          // 只显示时间部分
+          return value.split(' ')[1] || value
+        },
+        rotate: 45
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '数值',
+      nameTextStyle: {
+        color: '#666'
+      }
+    },
+    series: series
+  }
+
+  chartInstance.setOption(option)
+
+  // 监听窗口大小变化
+  const resizeHandler = () => {
+    if (chartInstance) {
+      chartInstance.resize()
+    }
+  }
+  window.addEventListener('resize', resizeHandler)
+}
 </script>
 
 <style scoped>
@@ -620,5 +811,22 @@ const tableColumns = computed(() => {
 
 :deep(.el-range-separator) {
   padding: 0 4px;
+}
+
+.chart-wrapper {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-container {
+  width: 100%;
+  height: 500px;
+  min-height: 400px;
+}
+.view-toggle-buttons{
+  position: absolute;
+  top: 15px;
+  right: 15px;
 }
 </style>
