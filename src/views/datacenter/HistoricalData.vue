@@ -27,11 +27,19 @@
 
         <!-- 按钮区域 -->
         <div class="button-area">
-          <el-button type="primary" @click="() => fetchHistoricalData(true)">查询</el-button>
+          <el-button type="primary" @click="handleQuery">查询</el-button>
         </div>
       </div>
       <div class="historical-data-title">
         <h2>历史数据查询</h2>
+        <!-- 添加视图模式切换按钮 -->
+        <div class="view-mode-switch">
+          <el-radio-group v-model="viewMode" @change="handleViewModeChange">
+            <el-radio-button label="table" size="small">表格视图</el-radio-button>
+            <el-radio-button label="chart" size="small">折线图</el-radio-button>
+            
+          </el-radio-group>
+        </div>
       </div>
       <div v-if="globalFetchError" class="global-error-message">
         <p>{{ globalFetchError }}</p>
@@ -46,10 +54,12 @@
             </el-icon>
             <span>加载数据中...</span>
           </div>
-          <div v-else-if="historyData.length === 0" class="no-data">
+          <div v-else-if="(viewMode === 'table' && historyData.length === 0) || (viewMode === 'chart' && chartData.length === 0)" class="no-data">
             <p>暂无历史数据，请调整查询条件后重试</p>
           </div>
-          <div v-else class="data-table-wrapper">
+          
+          <!-- 表格视图 -->
+          <div v-else-if="viewMode === 'table'" class="data-table-wrapper">
             <el-table :data="groupedData" border style="width: 100%">
               <el-table-column v-for="column in tableColumns" :key="column.prop" :prop="column.prop"
                 :label="column.label" :width="column.width" :min-width="column.minWidth" :fixed="column.fixed" />
@@ -60,6 +70,11 @@
                 :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next, jumper" :total="totalRecords"
                 @size-change="handleSizeChange" @current-change="handlePageChange" />
             </div>
+          </div>
+          
+          <!-- 折线图视图 -->
+          <div v-else-if="viewMode === 'chart'" class="chart-wrapper">
+            <div ref="chartContainer" class="chart-container"></div>
           </div>
         </div>
       </div>
@@ -77,8 +92,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
 import eventBus from '../../eventBus'
 import DeviceList from '../../components/DeviceList.vue'
 
@@ -96,6 +112,10 @@ const totalRecords = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const loading = ref(false)
+const viewMode = ref('table') // 视图模式：table 或 chart
+const chartData = ref([]) // 折线图数据
+const chartContainer = ref(null) // 图表容器引用
+let chartInstance = null // echarts实例
 
 // 日期快捷选项
 const shortcuts = [
@@ -259,7 +279,16 @@ const formatDateTime = (date) => {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 }
 
-// 获取历史数据
+// 统一的查询函数
+const handleQuery = () => {
+  if (viewMode.value === 'chart') {
+    fetchChartData()
+  } else {
+    fetchHistoricalData(true)
+  }
+}
+
+// 获取历史数据（表格模式专用）
 const fetchHistoricalData = async (resetPage = false) => {
   if (resetPage) {
     currentPage.value = 1
@@ -297,12 +326,14 @@ const fetchHistoricalData = async (resetPage = false) => {
     pageSize: adjustedPageSize
   }
 
-  console.log('发送历史数据请求:', requestData)
+  console.log('发送表格数据请求:', requestData)
 
   try {
     loading.value = true
     globalFetchError.value = null
-    const response = await fetch('/senser/deviceHistoryData', {
+    
+    // 修改API地址为表格专用接口
+    const response = await fetch('/senser/deviceHistoryPageData', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -317,17 +348,17 @@ const fetchHistoricalData = async (resetPage = false) => {
     const result = await response.json()
 
     if (result.code === 1 && result.data) {
-      console.log('[HistoricalData] 成功获取历史数据:', result.data)
+      console.log('[HistoricalData] 成功获取表格数据:', result.data)
       historyData.value = result.data.records || []
       totalRecords.value = Math.ceil((result.data.total || 0) / factorCount)
-      ElMessage.success('历史数据获取成功')
+      ElMessage.success('表格数据获取成功')
     } else {
-      throw new Error(result.msg || '获取历史数据失败')
+      throw new Error(result.msg || '获取表格数据失败')
     }
   } catch (error) {
-    console.error('[HistoricalData] 获取历史数据失败:', error)
-    globalFetchError.value = `获取历史数据失败: ${error.message}`
-    ElMessage.error(`获取历史数据失败: ${error.message}`)
+    console.error('[HistoricalData] 获取表格数据失败:', error)
+    globalFetchError.value = `获取表格数据失败: ${error.message}`
+    ElMessage.error(`获取表格数据失败: ${error.message}`)
   } finally {
     loading.value = false
   }
@@ -345,6 +376,235 @@ const handleSizeChange = (size) => {
   fetchHistoricalData(false)
 }
 
+// 视图模式切换处理
+const handleViewModeChange = (mode) => {
+  console.log('切换视图模式:', mode)
+  
+  // 检查是否有必要的数据
+  if (selectedDevices.value.length === 0 || selectedFactors.value.length === 0 || !date.value) {
+    console.log('缺少必要的查询条件，跳过数据请求')
+    return
+  }
+  
+  if (mode === 'chart') {
+    // 切换到折线图模式时，重新获取折线图数据
+    fetchChartData()
+  } else if (mode === 'table') {
+    // 切换到表格模式时，重新获取表格数据
+    fetchHistoricalData(true) // resetPage = true
+  }
+}
+
+// 折线图专用数据获取函数
+const fetchChartData = async () => {
+  if (!selectedDevices.value || selectedDevices.value.length === 0) {
+    ElMessage.warning('请选择设备')
+    return
+  }
+
+  if (!selectedFactors.value || selectedFactors.value.length === 0) {
+    ElMessage.warning('请选择监测因子')
+    return
+  }
+
+  if (!date.value || !date.value[0] || !date.value[1]) {
+    ElMessage.warning('请选择日期范围')
+    return
+  }
+
+  const deviceId = selectedDevices.value[0].id
+  const startTime = formatDateTime(date.value[0])
+  const endTime = formatDateTime(date.value[1])
+
+  const requestData = {
+    deviceId: deviceId,
+    factorIds: selectedFactors.value,
+    startTime: startTime,
+    endTime: endTime
+  }
+
+  console.log('发送折线图数据请求:', requestData)
+
+  try {
+    loading.value = true
+    globalFetchError.value = null
+
+    const response = await fetch('/senser/deviceHistoryData', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestData)
+    })
+
+    if (!response.ok) {
+      throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`)
+    }
+
+    const result = await response.json()
+
+    if (result.code === 1 && result.data) {
+      console.log('[HistoricalData] 成功获取折线图数据:', result.data)
+      
+      // 处理折线图数据格式
+      chartData.value = result.data
+      
+      ElMessage.success('折线图数据获取成功')
+      
+      // 渲染图表
+      await nextTick()
+      setTimeout(() => {
+        renderChart()
+      }, 50)
+    } else {
+      throw new Error(result.msg || '获取折线图数据失败')
+    }
+  } catch (error) {
+    console.error('[HistoricalData] 获取折线图数据失败:', error)
+    globalFetchError.value = `获取折线图数据失败: ${error.message}`
+    ElMessage.error(`获取折线图数据失败: ${error.message}`)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 渲染图表函数
+const renderChart = () => {
+  if (!chartContainer.value) {
+    console.error('图表容器未找到')
+    return
+  }
+
+  // 销毁旧的图表实例
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
+
+  // 创建新的图表实例
+  chartInstance = echarts.init(chartContainer.value)
+
+  if (!chartData.value || chartData.value.length === 0) {
+    console.warn('没有图表数据可显示')
+    return
+  }
+
+  console.log('开始渲染图表，数据条数:', chartData.value.length)
+
+  // 处理数据：按因子分组
+  const factorGroups = {}
+  chartData.value.forEach(item => {
+    if (!factorGroups[item.factorId]) {
+      factorGroups[item.factorId] = {
+        factorName: item.factorName,
+        unit: item.unit,
+        data: []
+      }
+    }
+    factorGroups[item.factorId].data.push({
+      time: item.recordTimeStr,
+      value: parseFloat(item.text) || 0
+    })
+  })
+
+  // 获取所有时间点（按时间排序）
+  const allTimes = [...new Set(chartData.value.map(item => item.recordTimeStr))]
+    .sort((a, b) => new Date(a) - new Date(b))
+
+  // 为每个因子创建数据系列
+  const series = Object.keys(factorGroups).map((factorId, index) => {
+    const group = factorGroups[factorId]
+    
+    // 创建时间-值映射
+    const valueMap = {}
+    group.data.forEach(item => {
+      valueMap[item.time] = item.value
+    })
+    
+    // 按时间顺序填充数据
+    const seriesData = allTimes.map(time => {
+      return valueMap[time] !== undefined ? valueMap[time] : null
+    })
+
+    return {
+      name: `${group.factorName}(${group.unit})`,
+      type: 'line',
+      data: seriesData,
+      connectNulls: false,
+      symbol: 'circle',
+      symbolSize: 4,
+      lineStyle: {
+        width: 2
+      }
+    }
+  })
+
+  const option = {
+    title: {
+      text: '历史数据趋势图',
+      left: 'center',
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 'bold'
+      }
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross'
+      },
+      formatter: function(params) {
+        let result = `<div style="font-weight: bold;">${params[0].axisValue}</div>`
+        params.forEach(param => {
+          if (param.value !== null) {
+            result += `<div>${param.marker}${param.seriesName}: ${param.value}</div>`
+          }
+        })
+        return result
+      }
+    },
+    legend: {
+      data: series.map(s => s.name),
+      top: 30,
+      type: 'scroll'
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '10%',
+      top: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: allTimes,
+      axisLabel: {
+        rotate: 45,
+        formatter: function(value) {
+          return value.substring(5) // 显示月-日 时:分:秒
+        }
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        formatter: '{value}'
+      }
+    },
+    series: series
+  }
+
+  chartInstance.setOption(option)
+
+  // 监听窗口大小变化
+  const resizeHandler = () => {
+    if (chartInstance) {
+      chartInstance.resize()
+    }
+  }
+  window.addEventListener('resize', resizeHandler)
+}
+
 // 生命周期钩子
 onMounted(() => {
   console.log('[HistoricalData] Component mounted, listening for devices-updated event.')
@@ -354,6 +614,12 @@ onMounted(() => {
 onUnmounted(() => {
   console.log('[HistoricalData] Component unmounted, removing devices-updated listener.')
   eventBus.off('devices-updated', handleDevicesUpdate)
+  
+  // 清理图表实例
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
+  }
 })
 
 // 计算属性 - 重组数据按时间和因子
@@ -620,5 +886,34 @@ const tableColumns = computed(() => {
 
 :deep(.el-range-separator) {
   padding: 0 4px;
+}
+
+/* 视图模式切换样式 */
+.view-mode-switch {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+/* 图表容器样式 */
+.chart-wrapper {
+  width: 100%;
+  height: 500px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chart-container {
+  width: 100%;
+  height: 100%;
+}
+
+.view-mode-switch {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 </style>
