@@ -1,6 +1,5 @@
 <template>
   <div class="realtime-data-layout">
-    <!-- 左侧数据展示区域 -->
     <div class="data-display-area">
       <h2>实时数据监控</h2>
       <div v-if="globalFetchError" class="global-error-message">
@@ -21,12 +20,10 @@
       </div>
     </div>
 
-    <!-- 右侧设备列表区域 -->
     <div class="device-list-area">
       <DeviceList :multi-select="true" />
     </div>
 
-    <!-- 数据详情模态框 -->
     <div v-if="showModal" class="data-detail-modal" @click="closeModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
@@ -36,16 +33,14 @@
         <div class="modal-body">
           <div class="detail-info">
             <p>
-              <strong>设备ID:</strong> {{ modalData.deviceId }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-              <strong>节点ID:</strong> {{ modalData.nodeId }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+              <strong>设备ID:</strong> {{ modalData.deviceId }}
+              <strong>节点ID:</strong> {{ modalData.nodeId }}
               <strong>寄存器ID:</strong> {{ modalData.registerId }}
             </p>
             <p><strong>设备:</strong> {{ modalData.deviceName }}</p>
             <p><strong>监测项:</strong> {{ modalData.sensorName }}</p>
             <p><strong>当前值:</strong>
-              <span>
-                {{ formatValueDisplay(modalData.value) }} {{ modalData.unit }}
-              </span>
+              <span>{{ formatValueDisplay(modalData.value) }} {{ modalData.unit }}</span>
             </p>
             <p><strong>更新时间:</strong> {{ modalData.recordTimeStr }}</p>
           </div>
@@ -60,11 +55,7 @@
                 {{ loadingChart ? '加载中...' : '显示历史趋势' }}
               </button>
             </div>
-            <div 
-              v-if="showChart" 
-              ref="chartContainer" 
-              class="chart-container"
-            ></div>
+            <div v-if="showChart" ref="chartContainer" class="chart-container"></div>
             <div v-else class="chart-placeholder">
               <p class="placeholder-text">点击上方按钮查看最近30条历史数据趋势</p>
             </div>
@@ -76,11 +67,11 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue';
-import * as echarts from 'echarts';
-import eventBus from '../../eventBus';
-import DeviceList from '../../components/DeviceList.vue';
-import DeviceBlock from '../../components/DeviceBlock.vue';
+import { ref, reactive, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import * as echarts from 'echarts'
+import eventBus from '../../eventBus'
+import DeviceList from '../../components/DeviceList.vue'
+import DeviceBlock from '../../components/DeviceBlock.vue'
 
 export default {
   name: 'RealTimeData',
@@ -89,16 +80,16 @@ export default {
     DeviceBlock
   },
   setup() {
-    const selectedDevices = ref([]);
-    const loadingData = reactive({});
-    const deviceData = reactive({});
-    const globalFetchError = ref(null);
-
-    const showModal = ref(false);
-    const showChart = ref(false);
-    const loadingChart = ref(false);
-    const chartContainer = ref(null);
-    let chartInstance = null;
+    const selectedDevices = ref([])
+    const loadingData = reactive({})
+    const deviceData = reactive({})
+    const globalFetchError = ref(null)
+    const showModal = ref(false)
+    const showChart = ref(false)
+    const loadingChart = ref(false)
+    const chartContainer = ref(null)
+    let chartInstance = null
+    let refreshInterval = null
     
     const modalData = reactive({
       deviceId: null,
@@ -110,124 +101,104 @@ export default {
       value: null,
       unit: '',
       title: ''
-    });
+    })
 
     watch(showModal, (isModalVisible) => {
-      document.body.style.overflow = isModalVisible ? 'hidden' : '';
-    });
+      document.body.style.overflow = isModalVisible ? 'hidden' : ''
+    })
 
     const showDetailModal = (device, sensorName, valueObj) => {
-      console.log('[RealTimeData] showDetailModal called with device:', device, 'sensorName:', sensorName, 'valueObj:', valueObj);
       try {
-        if (!device || typeof device.id === 'undefined' || typeof device.deviceName === 'undefined') {
-          console.error('[RealTimeData] Invalid device object passed to showDetailModal:', device);
-          globalFetchError.value = '无法显示详情：设备数据无效。';
-          return;
+        if (!device?.id || !device?.deviceName) {
+          globalFetchError.value = '无法显示详情：设备数据无效。'
+          return
         }
-        if (!valueObj || typeof valueObj.value === 'undefined') {
-          console.error('[RealTimeData] Invalid valueObj passed to showDetailModal:', valueObj);
-          globalFetchError.value = `无法显示详情：传感器 ${sensorName} 数据无效。`;
-          return;
+        if (!valueObj || valueObj.value === undefined) {
+          globalFetchError.value = `无法显示详情：传感器 ${sensorName} 数据无效。`
+          return
         }
 
-        modalData.deviceId = device.id;
-        modalData.deviceName = device.deviceName;
-        modalData.sensorName = sensorName;
-        modalData.value = valueObj.value;
-        modalData.nodeId = valueObj.nodeId;
-        modalData.recordTimeStr = valueObj.recordTimeStr;
-        modalData.registerId = valueObj.registerId;
-        modalData.unit = valueObj.unit || '';
+        Object.assign(modalData, {
+          deviceId: device.id,
+          deviceName: device.deviceName,
+          sensorName,
+          value: valueObj.value,
+          nodeId: valueObj.nodeId,
+          recordTimeStr: valueObj.recordTimeStr,
+          registerId: valueObj.registerId,
+          unit: valueObj.unit || '',
+          title: `${sensorName} 详情`
+        })
 
-        const currentDeviceData = deviceData[device.id];
-        modalData.title = `${sensorName} 详情`;
-
-        console.log('[RealTimeData] Modal data prepared:', JSON.parse(JSON.stringify(modalData)));
-        showModal.value = true;
-        console.log('[RealTimeData] showModal.value set to:', showModal.value);
+        showModal.value = true
       } catch (error) {
-        console.error('[RealTimeData] Error in showDetailModal:', error);
-        globalFetchError.value = `显示详情时发生错误: ${error.message}`;
+        globalFetchError.value = `显示详情时发生错误: ${error.message}`
       }
-    };
+    }
 
     const loadHistoryData = async () => {
       if (!modalData.deviceId || !modalData.nodeId || !modalData.registerId) {
-        globalFetchError.value = '缺少必要的参数，无法获取历史数据';
-        return;
+        globalFetchError.value = '缺少必要的参数，无法获取历史数据'
+        return
       }
 
-      loadingChart.value = true;
+      loadingChart.value = true
       try {
         const response = await fetch('/senser/deviceLast30Data', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             deviceId: modalData.deviceId,
             nodeId: modalData.nodeId,
             registerId: modalData.registerId
           })
-        });
+        })
 
         if (!response.ok) {
-          throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
+          throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`)
         }
 
-        const result = await response.json();
+        const result = await response.json()
         
         if (result.code === 1 && result.data && Array.isArray(result.data)) {
-          showChart.value = true;
-          await nextTick();
-          console.log('chartContainer.value after nextTick:', chartContainer.value); // 添加日志
-          renderChart(result.data);
+          showChart.value = true
+          await nextTick()
+          renderChart(result.data)
         } else {
-          throw new Error(result.msg || '获取历史数据失败');
+          throw new Error(result.msg || '获取历史数据失败')
         }
       } catch (error) {
-        console.error('获取历史数据失败:', error);
-        globalFetchError.value = `获取历史数据失败: ${error.message}`;
+        globalFetchError.value = `获取历史数据失败: ${error.message}`
       } finally {
-        loadingChart.value = false;
+        loadingChart.value = false
       }
-    };
+    }
 
     const renderChart = (data) => {
-      console.log('renderChart called, chartContainer.value:', chartContainer.value); // 添加日志
-      if (!chartContainer.value) {
-        console.error('chartContainer is null, cannot render chart.'); // 添加错误日志
-        return;
-      }
+      if (!chartContainer.value) return
 
-      // 销毁之前的图表实例
       if (chartInstance) {
-        chartInstance.dispose();
+        chartInstance.dispose()
       }
 
-      // 处理数据
-      const sortedData = data.sort((a, b) => new Date(a.recordTimeStr) - new Date(b.recordTimeStr));
-      const times = sortedData.map(item => item.recordTimeStr);
-      const values = sortedData.map(item => item.value);
-      const unit = data[0]?.unit || modalData.unit || '';
+      const sortedData = data.sort((a, b) => new Date(a.recordTimeStr) - new Date(b.recordTimeStr))
+      const times = sortedData.map(item => item.recordTimeStr)
+      const values = sortedData.map(item => item.value)
+      const unit = data[0]?.unit || modalData.unit || ''
 
-      // 创建图表实例
-      chartInstance = echarts.init(chartContainer.value);
+      chartInstance = echarts.init(chartContainer.value)
 
       const option = {
         title: {
           text: `${modalData.sensorName} 历史趋势`,
           left: 'center',
-          textStyle: {
-            fontSize: 16,
-            color: '#333'
-          }
+          textStyle: { fontSize: 16, color: '#333' }
         },
         tooltip: {
           trigger: 'axis',
-          formatter: function(params) {
-            const param = params[0];
-            return `${param.name}<br/>${param.seriesName}: ${param.value} ${unit}`;
+          formatter: (params) => {
+            const param = params[0]
+            return `${param.name}<br/>${param.seriesName}: ${param.value} ${unit}`
           }
         },
         grid: {
@@ -241,19 +212,14 @@ export default {
           boundaryGap: false,
           data: times,
           axisLabel: {
-            formatter: function(value) {
-              // 只显示时间部分
-              return value.split(' ')[1] || value;
-            },
+            formatter: (value) => value.split(' ')[1] || value,
             rotate: 45
           }
         },
         yAxis: {
           type: 'value',
           name: unit,
-          nameTextStyle: {
-            color: '#666'
-          }
+          nameTextStyle: { color: '#666' }
         },
         series: [{
           name: modalData.sensorName,
@@ -261,201 +227,156 @@ export default {
           smooth: true,
           symbol: 'circle',
           symbolSize: 6,
-          lineStyle: {
-            color: '#3498db',
-            width: 2
-          },
-          itemStyle: {
-            color: '#3498db'
-          },
+          lineStyle: { color: '#3498db', width: 2 },
+          itemStyle: { color: '#3498db' },
           areaStyle: {
             color: {
               type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [{
-                offset: 0,
-                color: 'rgba(52, 152, 219, 0.3)'
-              }, {
-                offset: 1,
-                color: 'rgba(52, 152, 219, 0.1)'
-              }]
+              x: 0, y: 0, x2: 0, y2: 1,
+              colorStops: [
+                { offset: 0, color: 'rgba(52, 152, 219, 0.3)' },
+                { offset: 1, color: 'rgba(52, 152, 219, 0.1)' }
+              ]
             }
           },
           data: values
         }]
-      };
+      }
 
-      chartInstance.setOption(option);
+      chartInstance.setOption(option)
 
-      // 监听窗口大小变化
-      const resizeHandler = () => {
-        if (chartInstance) {
-          chartInstance.resize();
-        }
-      };
-      window.addEventListener('resize', resizeHandler);
-    };
+      const resizeHandler = () => chartInstance?.resize()
+      window.addEventListener('resize', resizeHandler)
+    }
 
     const closeModal = () => {
-      showModal.value = false;
-      showChart.value = false;
+      showModal.value = false
+      showChart.value = false
       if (chartInstance) {
-        chartInstance.dispose();
-        chartInstance = null;
+        chartInstance.dispose()
+        chartInstance = null
       }
-    };
+    }
 
     const formatValueDisplay = (value) => {
-      if (value === undefined || value === null) return 'N/A';
-      return value;
-    };
+      return value === undefined || value === null ? 'N/A' : value
+    }
+
+    const clearDeviceData = () => {
+      Object.keys(deviceData).forEach(key => delete deviceData[key])
+      Object.keys(loadingData).forEach(key => delete loadingData[key])
+    }
 
     const fetchDataForSelectedDevices = async (idsToFetch) => {
-      globalFetchError.value = null;
+      globalFetchError.value = null
 
-      if (!idsToFetch || idsToFetch.length === 0) {
-        Object.keys(deviceData).forEach(key => delete deviceData[key]);
-        Object.keys(loadingData).forEach(key => delete loadingData[key]);
-        return;
+      if (!idsToFetch?.length) {
+        clearDeviceData()
+        return
       }
 
       idsToFetch.forEach(id => {
-        loadingData[id] = true;
-        deviceData[id] = null;
-      });
+        loadingData[id] = true
+        deviceData[id] = null
+      })
 
-      console.log(`[RealTimeData] 开始为设备 ${idsToFetch.join(', ')} 获取实时数据...`);
       try {
-        console.log('发送到后端的设备ID数组:', idsToFetch);
         const response = await fetch('/senser/deviceData', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(idsToFetch)
-        });
+        })
 
         if (!response.ok) {
-          throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
+          throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`)
         }
 
-        const result = await response.json();
+        const result = await response.json()
 
         if (result.code === 1) {
-          console.log('[RealTimeData] 成功获取批量设备数据:', result.data);
-          const receivedDataIds = new Set();
-          if (result.data && Array.isArray(result.data)) {
-            result.data.forEach(item => {
-              if (item && item.deviceId !== undefined) {
-                const deviceId = item.deviceId;
-                deviceData[deviceId] = {
-                  status: item.status === 1 ? '在线' : '离线',
-                  values: {}
-                };
-
-                if (item.dataItems && Array.isArray(item.dataItems)) {
-                  item.dataItems.forEach(dataItem => {
-                    if (dataItem.functionName && dataItem.value !== undefined) {
-                      deviceData[deviceId].values[dataItem.functionName] = {
-                        value: dataItem.value,
-                        unit: dataItem.unit || '',
-                        deviceId: dataItem.deviceId,
-                        nodeId: dataItem.nodeId,
-                        registerId: dataItem.registerId,
-                        recordTimeStr: dataItem.recordTimeStr
-                      };
-                    }
-                  });
-                }
-                loadingData[deviceId] = false;
-                receivedDataIds.add(deviceId);
-              } else {
-                console.warn('[RealTimeData] 收到的设备数据项格式不正确:', item);
+          const receivedDataIds = new Set()
+          
+          result.data?.forEach(item => {
+            if (item?.deviceId !== undefined) {
+              const deviceId = item.deviceId
+              deviceData[deviceId] = {
+                status: item.status === 1 ? '在线' : '离线',
+                values: {}
               }
-            });
-          }
+
+              item.dataItems?.forEach(dataItem => {
+                if (dataItem.functionName && dataItem.value !== undefined) {
+                  deviceData[deviceId].values[dataItem.functionName] = {
+                    value: dataItem.value,
+                    unit: dataItem.unit || '',
+                    deviceId: dataItem.deviceId,
+                    nodeId: dataItem.nodeId,
+                    registerId: dataItem.registerId,
+                    recordTimeStr: dataItem.recordTimeStr
+                  }
+                }
+              })
+              
+              loadingData[deviceId] = false
+              receivedDataIds.add(deviceId)
+            }
+          })
 
           idsToFetch.forEach(id => {
             if (!receivedDataIds.has(id)) {
-              loadingData[id] = false;
-              deviceData[id] = null;
-              console.warn(`[RealTimeData] 未收到设备 ${id} 的数据。`);
+              loadingData[id] = false
+              deviceData[id] = null
             }
-          });
+          })
         } else {
-          throw new Error(result.msg || '获取设备数据失败');
+          throw new Error(result.msg || '获取设备数据失败')
         }
       } catch (error) {
-        console.error(`[RealTimeData] 获取批量设备实时数据失败:`, error);
-        globalFetchError.value = error.message;
+        globalFetchError.value = error.message
         idsToFetch.forEach(id => {
-          loadingData[id] = false;
-        });
+          loadingData[id] = false
+        })
       }
-    };
+    }
 
     const handleDevicesUpdate = (devices) => {
-      console.log('[RealTimeData] Received devices-updated event:', devices);
-      selectedDevices.value = devices || [];
-      const newSelectedIds = selectedDevices.value.map(d => d.id);
+      selectedDevices.value = devices || []
+      const newSelectedIds = selectedDevices.value.map(d => d.id)
 
       Object.keys(deviceData).forEach(existingId => {
         if (!newSelectedIds.includes(existingId)) {
-          delete deviceData[existingId];
-          delete loadingData[existingId];
+          delete deviceData[existingId]
+          delete loadingData[existingId]
         }
-      });
+      })
 
-      fetchDataForSelectedDevices(newSelectedIds);
-    };
-
-    let refreshInterval = null; 
+      fetchDataForSelectedDevices(newSelectedIds)
+    }
 
     onMounted(() => {
-      console.log('[RealTimeData] Component mounted, listening for devices-updated event.');
-      eventBus.on('devices-updated', handleDevicesUpdate);
+      eventBus.on('devices-updated', handleDevicesUpdate)
 
       refreshInterval = setInterval(() => {
-        const selectedIds = selectedDevices.value.map(d => d.id);
+        const selectedIds = selectedDevices.value.map(d => d.id)
         if (selectedIds.length > 0) {
-          fetchDataForSelectedDevices(selectedIds);
+          fetchDataForSelectedDevices(selectedIds)
         }
-      }, 30000);
-    });
+      }, 30000)
+    })
 
     onUnmounted(() => {
-      if (refreshInterval) { 
-        clearInterval(refreshInterval);
+      if (refreshInterval) {
+        clearInterval(refreshInterval)
       }
-      console.log('[RealTimeData] Component unmounted, removing devices-updated listener.');
-      eventBus.off('devices-updated', handleDevicesUpdate);
-      document.body.style.overflow = '';
-    });
-
-
-
-    const formatValue = (valueObj) => {
-      if (valueObj !== undefined && valueObj !== null) {
-        if (typeof valueObj === 'object') {
-          const value = valueObj.value;
-          const unit = valueObj.unit || '';
-          return value + ' ' + unit;
-        } else if (typeof valueObj === 'number') {
-          return valueObj;
-        }
-      }
-      return valueObj;
-    };
+      eventBus.off('devices-updated', handleDevicesUpdate)
+      document.body.style.overflow = ''
+    })
 
     return {
       selectedDevices,
       loadingData,
       deviceData,
       globalFetchError,
-      formatValue,
       showModal,
       modalData,
       showDetailModal,
@@ -465,7 +386,7 @@ export default {
       loadingChart,
       chartContainer,
       loadHistoryData
-    };
+    }
   }
 }
 </script>
@@ -473,9 +394,8 @@ export default {
 <style scoped>
 .realtime-data-layout {
   display: flex;
-  flex-direction: row;
   width: 100%;
-  height: calc(100vh - 70px); /* Assuming 70px is TopBar height */
+  height: calc(100vh - 70px);
   padding-left: 10px;
   box-sizing: border-box;
   background-color: #f0f2f5;
@@ -492,12 +412,12 @@ export default {
   flex-direction: column;
   overflow-y: auto;
   min-width: 0;
-  -ms-overflow-style: none; 
-  scrollbar-width: none; 
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .data-display-area::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
 }
 
 .device-list-area {
@@ -516,24 +436,23 @@ h2 {
   color: #2c3e50;
   border-bottom: 2px solid #3498db;
   padding-bottom: 10px;
-  flex-shrink: 0; /* Prevent h2 from shrinking */
+  flex-shrink: 0;
 }
 
 .devices-container {
   display: flex;
   flex-direction: column;
   gap: 30px;
-  flex: 1; /* Allow this container to grow and enable scrolling if DeviceBlocks overflow */
+  flex: 1;
 }
 
-
 .global-error-message {
-  background-color: #ffebee; /* Light red background */
-  color: #c62828; /* Dark red text */
+  background-color: #ffebee;
+  color: #c62828;
   padding: 15px;
   margin: 15px;
   border-radius: 4px;
-  border: 1px solid #ef9a9a; /* Lighter red border */
+  border: 1px solid #ef9a9a;
   text-align: center;
 }
 
@@ -548,7 +467,6 @@ h2 {
   padding: 20px;
 }
 
-/* Modal Styles */
 .data-detail-modal {
   position: fixed;
   top: 0;
@@ -690,7 +608,6 @@ h2 {
   margin: 0;
 }
 
-/* Scrollbar styling for modal body if needed */
 .modal-body::-webkit-scrollbar {
   width: 8px;
 }
@@ -708,5 +625,4 @@ h2 {
 .modal-body::-webkit-scrollbar-thumb:hover {
   background: #aaa;
 }
-
 </style>
