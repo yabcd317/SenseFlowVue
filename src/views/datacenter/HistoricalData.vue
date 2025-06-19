@@ -35,7 +35,7 @@
         <!-- 添加视图模式切换按钮 -->
         <div class="view-mode-switch">
           <el-radio-group v-model="viewMode" @change="handleViewModeChange">
-            <el-radio-button label="table" size="small">表格视图</el-radio-button>
+            <el-radio-button label="table" size="small">表格</el-radio-button>
             <el-radio-button label="chart" size="small">折线图</el-radio-button>
             
           </el-radio-group>
@@ -890,7 +890,6 @@ const tableColumns = computed(() => {
 
 /* 视图模式切换样式 */
 .view-mode-switch {
-  margin-top: 10px;
   display: flex;
   justify-content: center;
 }

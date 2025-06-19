@@ -35,12 +35,12 @@ export default defineConfig({
     // 配置代理
     proxy: {
       '/sense': {
-        target: 'http://localhost:8080',
+        target: 'http://120.46.84.131:8081',
         changeOrigin: true,
         secure: false
       },
       '/user': {
-        target: 'http://localhost:8080',
+        target: 'http://120.46.84.131:8081',
         changeOrigin: true,
         secure: false
       }

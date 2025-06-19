@@ -12,7 +12,6 @@
       <div class="loading-spinner"></div>
       <p>加载中...</p>
     </div>
-    <!-- 设备数据卡片横向排列 -->
     <div v-else-if="deviceData && deviceData.values" class="data-cards-row">
       <div v-for="(value, key) in deviceData.values" :key="`${device.id}-${key}`" class="data-card"
         @click="onCardClick(key, value)">
@@ -66,7 +65,6 @@ export default {
 </script>
 
 <style scoped>
-/* 设备区块 */
 .device-block {
   display: flex;
   flex-direction: column;
@@ -74,21 +72,16 @@ export default {
   padding-bottom: 20px;
   border-bottom: 1px dashed #e0e0e0;
   width: 100%;
-  /* 新增：使DeviceBlock本身撑满其容器宽度 */
 }
 
 .device-block:last-child {
   border-bottom: none;
 }
 
-/* 设备标题 */
 .device-header {
   margin: 10px 20px;
-  /* 外部间距 */
   width: 98%;
-  /* 设置宽度为100% */
   box-sizing: border-box;
-  /* 确保padding和border不影响总宽度 */
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -127,7 +120,6 @@ export default {
   border: 1px solid #ffccc7;
 }
 
-/* 数据卡片横向排列 */
 .data-cards-row {
   display: flex;
   flex-wrap: wrap;
@@ -224,7 +216,6 @@ export default {
   flex-shrink: 0;
 }
 
-/* 加载指示器样式 */
 .loading-indicator {
   flex: 1;
   display: flex;
@@ -255,7 +246,6 @@ export default {
   }
 }
 
-/* 暂无数据消息样式 */
 .no-data-message {
   flex: 1;
   display: flex;

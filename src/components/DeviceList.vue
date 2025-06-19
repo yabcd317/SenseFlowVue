@@ -55,7 +55,7 @@ export default {
             online: device.status === 1,
             lat: device.lat,
             lng: device.lng,
-            useMarkLocation: device.useMarkLocation // 添加标记位置信息
+            useMarkLocation: device.useMarkLocation 
           }));
         } else {
           console.error('获取设备列表API错误:', result.msg);
@@ -71,20 +71,14 @@ export default {
 
     const toggleDevice = (deviceId) => {
       if (props.multiSelect) {
-        // 多选模式：切换选中状态
         const index = selectedDeviceIds.value.indexOf(deviceId);
         if (index > -1) {
-          // 如果已选中，则取消选中
           selectedDeviceIds.value.splice(index, 1);
         } else {
-          // 如果未选中，则添加到选中列表
           selectedDeviceIds.value.push(deviceId);
         }
       } else {
-        // 单选模式：直接替换选中项
-        // 如果点击已选中的设备，不做任何操作
         if (selectedDeviceIds.value.length === 1 && selectedDeviceIds.value[0] === deviceId) return;
-        
         // 设置选中的设备ID
         selectedDeviceIds.value = [deviceId];
       }

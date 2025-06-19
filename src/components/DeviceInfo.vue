@@ -95,7 +95,6 @@ export default {
       error.value = null;
       
       try {
-        // 使用http工具函数发送请求获取设备详情
         const result = await http.get(`/senser/deviceInfo/${id}`);
         
         if (result.code === 1 && result.data) {
@@ -132,11 +131,8 @@ export default {
       }
     };
     
-    // 获取区域名称（示例函数，实际应从后端获取或映射）
     const getAreaName = () => {
-      // 这里可以根据实际情况从后端获取区域信息
-      // 或者使用本地映射表将设备ID映射到区域名称
-      return '默认区域'; // 示例返回值
+      return '默认区域'; 
     };
     
     // 监听设备选择事件
@@ -161,7 +157,6 @@ export default {
       // 监听设备选择事件
       eventBus.on('devices-updated', handleDeviceSelected);
       
-      // 如果初始化时已有 deviceId，则获取设备信息
       if (props.deviceId) {
         fetchDeviceInfo(props.deviceId);
       }

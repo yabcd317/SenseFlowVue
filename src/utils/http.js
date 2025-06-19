@@ -11,7 +11,6 @@ export const httpRequest = async (url, options = {}) => {
     }
   }
   
-  // 合并配置
   const finalOptions = {
     ...defaultOptions,
     ...options,
@@ -45,7 +44,6 @@ export const httpRequest = async (url, options = {}) => {
   }
 }
 
-// 便捷方法
 export const http = {
   get: (url, options = {}) => httpRequest(url, { ...options, method: 'GET' }),
   post: (url, data, options = {}) => httpRequest(url, {

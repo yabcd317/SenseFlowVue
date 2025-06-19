@@ -10,7 +10,6 @@
         <i v-if="item.children" class="arrow" :class="{ expanded: item.expanded }">▶</i>
       </div>
       
-      <!-- 子菜单直接放在父菜单下方 -->
       <div 
         v-if="item.expanded && item.children"
         class="submenu"
@@ -69,10 +68,10 @@ export default {
   width: 200px;
   background-color: #2c3e50;
   color: white;
-  height: calc(100vh - 70px); /* 减去顶栏高度 */
+  height: calc(100vh - 70px);
   position: fixed;
   left: 0;
-  top: 70px; /* 顶栏高度 */
+  top: 70px; 
   overflow-y: auto;
 }
 

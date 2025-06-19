@@ -388,7 +388,7 @@ const deleteUser = async (user) => {
   flex-direction: column;
   width: 100%;
   height: calc(100vh - 70px);
-  padding: 10px;
+  padding: 0 10px;
   box-sizing: border-box;
   background-color: #f0f2f5;
 }
