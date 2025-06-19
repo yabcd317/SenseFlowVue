@@ -29,10 +29,8 @@ export default defineConfig({
     }),
   ],
 
-  // 添加开发服务器配置
   server: {
     historyApiFallback: true,
-    // 配置代理
     proxy: {
       '/sense': {
         target: 'http://120.46.84.131:8081',

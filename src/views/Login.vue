@@ -16,7 +16,6 @@
         <el-form-item>
           <el-button type="primary" @click="handleLogin" :loading="loading">登录</el-button>
         </el-form-item>
-        <!-- 添加错误提示 -->
         <el-form-item v-if="errorMessage">
           <p class="error-message">{{ errorMessage }}</p>
         </el-form-item>
@@ -99,7 +98,6 @@ export default {
         }
 
         if (result.code !== 1) {
-          // 根据失败信息弹出提示
           errorMessage.value = result.msg || '登录失败'
           return
         }
@@ -159,7 +157,6 @@ export default {
   overflow: hidden;
 }
 
-/* 背景图片区域 */
 .login-background {
   position: fixed; 
   top: 0;
@@ -170,7 +167,6 @@ export default {
   background-repeat: no-repeat;
   background-position: center; 
   background-size: 100% 100%;
-
   z-index: 0;
 }
 
@@ -197,12 +193,7 @@ h2 {
   width: 100%;
 }
 
-/* 确保提示信息不会被遮挡 */
-.el-message {
-  z-index: 1000;
-}
 
-/* 错误提示样式 */
 .error-message {
   color: red;
   font-size: 14px;

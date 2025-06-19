@@ -22,6 +22,3 @@ initAMapApiLoader({
 })
 
 const app = createApp(App).use(router).mount('#app')
-app.use(router)
-app.use(VueAMap)
-app.mount('#app')

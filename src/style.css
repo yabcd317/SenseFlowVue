@@ -23,11 +23,7 @@ a:hover {
 }
 
 body {
-  margin: 0; /* 这个 margin: 0 实际上是多余的，因为 html, body 规则已经设置了 */
-  /* display: flex; */ /* 移除 flex 布局 */
-  /* place-items: center; */ /* 移除居中 */
-  min-width: 320px; /* 保留最小宽度 */
-  /* min-height: 100vh; */ /* 移除，因为 html, body 的 height: 100% 已经生效 */
+  min-width: 320px; 
 }
 
 h1 {
@@ -70,14 +66,13 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  /* 可以考虑添加 width: 100% 和 overflow-x: hidden */
   width: 100%;
   overflow-x: hidden;
 }
 
 #app {
   height: 100%;
-  width: 100%; /* 确保宽度也是 100% */
+  width: 100%; 
 }
 
 input:focus {

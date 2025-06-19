@@ -2,21 +2,16 @@
   <div class="user-management-layout">
     <div class="user-display-area">
       <div class="user-display-area-top">
-        <!-- 用户名搜索框 -->
         <div class="search-container">
           <el-input v-model="searchUsername" placeholder="请输入用户名搜索" style="width: 300px" clearable
             @keyup.enter="fetchUsers(true)">
             <template #prefix>
-              <el-icon>
-                <Search />
-              </el-icon>
+              <el-icon><Search /></el-icon>
             </template>
           </el-input>
         </div>
-
-        <!-- 按钮区域 -->
         <div class="button-area">
-          <el-button type="primary" @click="() => fetchUsers(true)">查询</el-button>
+          <el-button type="primary" @click="fetchUsers(true)">查询</el-button>
           <el-button type="success" @click="showAddUserDialog">新增用户</el-button>
         </div>
       </div>
@@ -29,9 +24,7 @@
 
       <div class="user-data-container">
         <div v-if="loading" class="loading-data">
-          <el-icon class="is-loading">
-            <Loading />
-          </el-icon>
+          <el-icon class="is-loading"><Loading /></el-icon>
           <span>加载数据中...</span>
         </div>
         <div v-else-if="userData.length === 0" class="no-data">
@@ -86,7 +79,6 @@
       </div>
     </div>
 
-    <!-- 用户编辑/新增对话框 -->
     <el-dialog v-model="userDialogVisible" :title="isEditMode ? '编辑用户' : '新增用户'" width="500px"
       :before-close="handleDialogClose">
       <el-form ref="userFormRef" :model="userForm" :rules="userFormRules" label-width="80px">
@@ -126,12 +118,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Loading } from '@element-plus/icons-vue'
-import { http } from '../utils/http.js' // 添加这行导入
+import { http } from '../utils/http.js'
 
-// 响应式数据
 const searchUsername = ref('')
 const userData = ref([])
 const totalRecords = ref(0)
@@ -140,13 +131,10 @@ const pageSize = ref(10)
 const loading = ref(false)
 const globalFetchError = ref(null)
 const submitting = ref(false)
-
-// 对话框相关
 const userDialogVisible = ref(false)
 const isEditMode = ref(false)
 const userFormRef = ref()
 
-// 用户表单数据
 const userForm = reactive({
   id: null,
   username: '',
@@ -156,54 +144,42 @@ const userForm = reactive({
   manager: 0
 })
 
-// 表单验证规则
+const validatePassword = (rule, value, callback) => {
+  if (!isEditMode.value && !value) {
+    callback(new Error('请输入密码'))
+  } else if (value && value.length < 6) {
+    callback(new Error('密码长度不能少于6位'))
+  } else {
+    if (userForm.confirmPassword) {
+      userFormRef.value?.validateField('confirmPassword')
+    }
+    callback()
+  }
+}
+
+const validateConfirmPassword = (rule, value, callback) => {
+  if (userForm.password && value !== userForm.password) {
+    callback(new Error('两次输入密码不一致'))
+  } else {
+    callback()
+  }
+}
+
 const userFormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
   ],
-  password: [
-    {
-      validator: (rule, value, callback) => {
-        if (!isEditMode.value && !value) {
-          callback(new Error('请输入密码'))
-        } else if (value && value.length < 6) {
-          callback(new Error('密码长度不能少于6位'))
-        } else {
-          if (userForm.confirmPassword) {
-            userFormRef.value?.validateField('confirmPassword')
-          }
-          callback()
-        }
-      },
-      trigger: 'blur'
-    }
-  ],
-  confirmPassword: [
-    {
-      validator: (rule, value, callback) => {
-        if (userForm.password && value !== userForm.password) {
-          callback(new Error('两次输入密码不一致'))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'blur'
-    }
-  ]
+  password: [{ validator: validatePassword, trigger: 'blur' }],
+  confirmPassword: [{ validator: validateConfirmPassword, trigger: 'blur' }]
 }
 
-// 格式化日期时间
 const formatDateTime = (dateTime) => {
-  if (!dateTime) return '-'
-  return new Date(dateTime).toLocaleString('zh-CN')
+  return dateTime ? new Date(dateTime).toLocaleString('zh-CN') : '-'
 }
 
-// 获取用户列表
 const fetchUsers = async (resetPage = false) => {
-  if (resetPage) {
-    currentPage.value = 1
-  }
+  if (resetPage) currentPage.value = 1
 
   const params = new URLSearchParams({
     page: currentPage.value,
@@ -236,7 +212,6 @@ const fetchUsers = async (resetPage = false) => {
   }
 }
 
-// 分页处理
 const handlePageChange = (page) => {
   currentPage.value = page
   fetchUsers(false)
@@ -248,49 +223,48 @@ const handleSizeChange = (size) => {
   fetchUsers(false)
 }
 
-// 显示新增用户对话框
 const showAddUserDialog = () => {
   isEditMode.value = false
   resetUserForm()
   userDialogVisible.value = true
 }
 
-// 显示编辑用户对话框
 const showEditUserDialog = (user) => {
   isEditMode.value = true
-  userForm.id = user.id
-  userForm.username = user.username
-  userForm.password = ''
-  userForm.confirmPassword = ''
-  userForm.status = user.status
-  userForm.manager = user.manager
+  Object.assign(userForm, {
+    id: user.id,
+    username: user.username,
+    password: '',
+    confirmPassword: '',
+    status: user.status,
+    manager: user.manager
+  })
   userDialogVisible.value = true
 }
 
-// 重置用户表单
 const resetUserForm = () => {
-  userForm.id = null
-  userForm.username = ''
-  userForm.password = ''
-  userForm.confirmPassword = ''
-  userForm.status = 1
-  userForm.manager = 0
+  Object.assign(userForm, {
+    id: null,
+    username: '',
+    password: '',
+    confirmPassword: '',
+    status: 1,
+    manager: 0
+  })
   nextTick(() => {
     userFormRef.value?.clearValidate()
   })
 }
 
-// 处理对话框关闭
 const handleDialogClose = (done) => {
   ElMessageBox.confirm('确认关闭对话框？未保存的数据将丢失。')
     .then(() => {
       resetUserForm()
       done()
     })
-    .catch(() => { })
+    .catch(() => {})
 }
 
-// 提交用户表单
 const submitUserForm = async () => {
   try {
     await userFormRef.value?.validate()
@@ -306,13 +280,10 @@ const submitUserForm = async () => {
     if (userForm.password) {
       submitData.password = userForm.password
     }
-    let result 
-    if (isEditMode.value) {
-       result  = await http.put('/user', submitData)
-    } else {
-       result  = await http.post('/user', submitData)
-    }
 
+    const result = isEditMode.value 
+      ? await http.put('/user', submitData)
+      : await http.post('/user', submitData)
 
     if (result.code === 1) {
       ElMessage.success(isEditMode.value ? '用户更新成功' : '用户创建成功')
@@ -330,19 +301,17 @@ const submitUserForm = async () => {
   }
 }
 
-// 切换用户状态
 const toggleUserStatus = async (user) => {
   const newStatus = user.status === 1 ? 0 : 1
   const statusText = newStatus === 1 ? '启用' : '禁用'
 
   try {
     await ElMessageBox.confirm(`确认${statusText}用户 "${user.username}"？`, '确认操作')
-    const status = {
+    
+    const result = await http.post('/user/status', {
       id: user.id,
-      status: newStatus,
-    }
-
-    const result = await http.post('/user/status', status)
+      status: newStatus
+    })
 
     if (result.code === 1) {
       ElMessage.success(`用户${statusText}成功`)
@@ -358,7 +327,6 @@ const toggleUserStatus = async (user) => {
   }
 }
 
-// 删除用户
 const deleteUser = async (user) => {
   try {
     await ElMessageBox.confirm(`确认删除用户 "${user.username}"？此操作不可恢复。`, '确认删除', {
@@ -413,13 +381,13 @@ const deleteUser = async (user) => {
   margin-bottom: 20px;
 }
 
-.search-container {
+.search-container,
+.button-area {
   display: flex;
   align-items: center;
 }
 
 .button-area {
-  display: flex;
   gap: 10px;
 }
 
@@ -431,12 +399,16 @@ h2 {
   flex-shrink: 0;
 }
 
-.user-data-container {
+.user-data-container,
+.data-table-wrapper {
   flex: 1;
-  padding: 0 20px 20px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.user-data-container {
+  padding: 0 20px 20px;
 }
 
 .loading-data,
@@ -454,17 +426,12 @@ h2 {
   margin-bottom: 10px;
 }
 
-.data-table-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.pagination-container {
+.pagination-container,
+.dialog-footer {
   margin-top: 15px;
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .global-error-message {
@@ -475,12 +442,6 @@ h2 {
   border-radius: 4px;
   border: 1px solid #ef9a9a;
   text-align: center;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 :deep(.el-table) {
