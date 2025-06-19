@@ -1,16 +1,18 @@
 <template>
   <div class="home-container">
     <TopBar :username="user.username" @logout="logout" />
-
-    <SideBar :menuItems="menuItems" :activeIndex="activeMenuIndex" :activeSubIndex="activeSubMenuIndex"
-      @menu-click="handleMenuChange" @toggle-submenu="toggleSubmenu" />
-
+    <SideBar 
+      :menuItems="menuItems" 
+      :activeIndex="activeMenuIndex" 
+      :activeSubIndex="activeSubMenuIndex"
+      @menu-click="handleMenuChange" 
+      @toggle-submenu="toggleSubmenu" 
+    />
     <div class="main-content-area">
       <div v-if="$route.path === '/'" class="home-page-layout">
         <div class="home-row top-row">
           <div class="status-card total-devices">
             <div class="icon-container">
-              <i class="fas fa-cogs"></i>
             </div>
             <div class="card-content">
               <div class="card-title">设备总数</div>
@@ -53,9 +55,17 @@
           <DeviceInfo class="home-component-placeholder middle-component-3" :deviceId="selectedDeviceId" />
         </div>
         <div class="home-row bottom-row">
-          <DeviceBlock v-if="selectedDeviceId && deviceData" class="home-component-placeholder full-width-component"
-            :device="{ id: selectedDeviceId, deviceName: selectedDevice ? selectedDevice.deviceName : `设备${selectedDeviceId}` }" :device-data="deviceData"
-            :loading="loading" @card-click="handleCardClick" />
+          <DeviceBlock 
+            v-if="selectedDeviceId && deviceData" 
+            class="home-component-placeholder full-width-component"
+            :device="{ 
+              id: selectedDeviceId, 
+              deviceName: selectedDevice ? selectedDevice.deviceName : `设备${selectedDeviceId}` 
+            }" 
+            :device-data="deviceData"
+            :loading="loading" 
+            @card-click="handleCardClick" 
+          />
           <div v-else class="home-component-placeholder full-width-component no-device-message">
             请稍候
           </div>
@@ -67,15 +77,14 @@
 </template>
 
 <script>
-import TopBar from '../components/TopBar.vue';
-import SideBar from '../components/SideBar.vue';
-import DeviceList from '../components/DeviceList.vue';
-import DeviceInfo from '../components/DeviceInfo.vue';
-import eventBus from '../eventBus';
-import DeviceBlock from '../components/DeviceBlock.vue';
-import { defineComponent } from "vue";
-import { ElAmap } from "@vuemap/vue-amap";
-import { http } from '../utils/http.js'; // 添加http工具导入
+import TopBar from '../components/TopBar.vue'
+import SideBar from '../components/SideBar.vue'
+import DeviceList from '../components/DeviceList.vue'
+import DeviceInfo from '../components/DeviceInfo.vue'
+import DeviceBlock from '../components/DeviceBlock.vue'
+import eventBus from '../eventBus'
+import { ElAmap } from '@vuemap/vue-amap'
+import { http } from '../utils/http.js'
 
 export default {
   name: 'HomePage',
@@ -89,24 +98,16 @@ export default {
   },
   data() {
     return {
-      user: {
-        username: ''
-      },
+      user: { username: '' },
       zoom: 12,
       center: [109.461370137, 36.619032302],
       map: null,
       menuItems: [
-        {
-          name: '首页',
-          path: '/',
-          expanded: false
-        },
+        { name: '首页', path: '/', expanded: false },
         {
           name: '在线监控',
           expanded: false,
-          children: [
-            { name: '实时数据', path: '/monitor/realtime' }
-          ]
+          children: [{ name: '实时数据', path: '/monitor/realtime' }]
         },
         {
           name: '数据中心',
@@ -116,303 +117,273 @@ export default {
             { name: '报警数据', path: '/data/alarm' }
           ]
         },
-        {
-          name: '用户管理',
-          path: '/management',
-          expanded: false
-        }
+        { name: '用户管理', path: '/management', expanded: false }
       ],
       activeMenuIndex: 0,
       activeSubMenuIndex: -1,
-      deviceStats: {
-        total: 10,
-        online: 6,
-        alarm: 0,
-        offline: 4
-      },
+      deviceStats: { total: 10, online: 6, alarm: 0, offline: 4 },
       selectedDeviceId: null,
-      selectedDevice: null, 
+      selectedDevice: null,
       deviceData: null,
       loading: false,
-      statusTimer: null // 添加定时器变量
+      statusTimer: null
     }
   },
   computed: {
+    // deviceStatsConfig() {
+    //   return {
+    //     'total-devices': { title: '设备总数', icon: 'fas fa-cogs' },
+    //     'online-devices': { title: '在线设备', icon: 'fas fa-leaf' },
+    //     'alarm-devices': { title: '报警设备', icon: 'fas fa-bell' },
+    //     'offline-devices': { title: '离线设备', icon: 'fas fa-plug' }
+    //   }
+    // },
     currentPageTitle() {
-      const activeMenu = this.menuItems[this.activeMenuIndex];
+      const activeMenu = this.menuItems[this.activeMenuIndex]
       if (this.activeSubMenuIndex >= 0 && activeMenu?.children) {
-        const subMenu = activeMenu.children[this.activeSubMenuIndex];
-        return subMenu?.name || '';
+        const subMenu = activeMenu.children[this.activeSubMenuIndex]
+        return subMenu?.name || ''
       }
-      return activeMenu?.name || '首页';
+      return activeMenu?.name || '首页'
     },
     currentPagePath() {
-      const activeMenu = this.menuItems[this.activeMenuIndex];
+      const activeMenu = this.menuItems[this.activeMenuIndex]
       if (this.activeSubMenuIndex >= 0 && activeMenu?.children) {
-        const subMenu = activeMenu.children[this.activeSubMenuIndex];
-        return `${activeMenu.name} > ${subMenu?.name || ''}`;
+        const subMenu = activeMenu.children[this.activeSubMenuIndex]
+        return `${activeMenu.name} > ${subMenu?.name || ''}`
       }
-      return activeMenu?.name || '首页';
+      return activeMenu?.name || '首页'
     },
     isHomePage() {
-      return this.$route.path === '/';
+      return this.$route.path === '/'
     }
   },
   methods: {
     init(map) {
-      const marker = new AMap.Marker({
-        position: [109.461370137, 36.619032302]
-      });
-      map.add(marker);
-      this.map = map;
+      const marker = new AMap.Marker({ position: this.center })
+      map.add(marker)
+      this.map = map
     },
     logout() {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      this.$router.push('/login');
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      this.$router.push('/login')
     },
     handleMenuChange(parentIndex, subIndex) {
-      this.activeMenuIndex = parentIndex;
-      this.activeSubMenuIndex = subIndex;
+      this.activeMenuIndex = parentIndex
+      this.activeSubMenuIndex = subIndex
 
-      const menuItem = this.menuItems[parentIndex];
-      let path = menuItem.path;
+      const menuItem = this.menuItems[parentIndex]
+      let path = menuItem.path
 
       if (subIndex >= 0 && menuItem.children) {
-        path = menuItem.children[subIndex].path;
-      }
-      else if (menuItem.children && menuItem.children.length > 0 && subIndex === -1) {
-        this.toggleSubmenu(parentIndex);
-        return;
+        path = menuItem.children[subIndex].path
+      } else if (menuItem.children && menuItem.children.length > 0 && subIndex === -1) {
+        this.toggleSubmenu(parentIndex)
+        return
       }
 
       if (path && this.$route.path !== path) {
-        this.$router.push(path);
+        this.$router.push(path)
       } else if (!path && subIndex === -1) {
-        this.toggleSubmenu(parentIndex);
+        this.toggleSubmenu(parentIndex)
       }
     },
     toggleSubmenu(index) {
-      if (!this.menuItems[index]) return;
-      const wasExpanded = this.menuItems[index].expanded;
+      if (!this.menuItems[index]) return
+      const wasExpanded = this.menuItems[index].expanded
       this.menuItems.forEach((item, i) => {
-        if (i !== index) {
-          item.expanded = false;
-        }
-      });
-      this.menuItems[index].expanded = !wasExpanded;
+        if (i !== index) item.expanded = false
+      })
+      this.menuItems[index].expanded = !wasExpanded
     },
     updateMenuState(currentPath) {
-      let found = false;
+      let found = false
       for (let i = 0; i < this.menuItems.length; i++) {
-        const item = this.menuItems[i];
+        const item = this.menuItems[i]
         if (item.path === currentPath && item.path === '/') {
-          this.activeMenuIndex = i;
-          this.activeSubMenuIndex = -1;
-          this.menuItems.forEach((menu) => { menu.expanded = false; });
-          found = true;
-          break;
+          this.activeMenuIndex = i
+          this.activeSubMenuIndex = -1
+          this.menuItems.forEach(menu => { menu.expanded = false })
+          found = true
+          break
         }
         if (item.children) {
           for (let j = 0; j < item.children.length; j++) {
             if (item.children[j].path === currentPath) {
-              this.activeMenuIndex = i;
-              this.activeSubMenuIndex = j;
-              this.menuItems.forEach((menu, idx) => { menu.expanded = (idx === i); });
-              found = true;
-              break;
+              this.activeMenuIndex = i
+              this.activeSubMenuIndex = j
+              this.menuItems.forEach((menu, idx) => { menu.expanded = (idx === i) })
+              found = true
+              break
             }
           }
         }
-        if (found) break;
+        if (found) break
       }
       if (!found && currentPath === '/') {
-        this.activeMenuIndex = this.menuItems.findIndex(item => item.path === '/');
-        this.activeSubMenuIndex = -1;
-        this.menuItems.forEach(item => item.expanded = false);
+        this.activeMenuIndex = this.menuItems.findIndex(item => item.path === '/')
+        this.activeSubMenuIndex = -1
+        this.menuItems.forEach(item => item.expanded = false)
       }
     },
-    // 修改fetchDeviceStats方法
     async fetchDeviceStats() {
       try {
-        const result = await http.get('/senser/deviceStatus');
-        
+        const result = await http.get('/senser/deviceStatus')
         if (result.code === 1 && result.data) {
           this.deviceStats = {
-            total: result.data.total || 10,
-            online: result.data.online || 6,
+            total: result.data.total || 0,
+            online: result.data.online || 0,
             alarm: result.data.alarm || 0,
-            offline: result.data.offline || 6
-          };
+            offline: result.data.offline || 0
+          }
         } else {
-          console.error('获取设备状态失败:', result.msg);
-          // 保持默认值
-          this.deviceStats = {
-            total: 0,
-            online: 0,
-            alarm: 0,
-            offline: 0
-          };
+          console.error('获取设备状态失败:', result.msg)
+          this.resetDeviceStats()
         }
       } catch (error) {
-        console.error('获取设备状态时发生错误:', error);
-        // 保持默认值
-        this.deviceStats = {
-          total: 0,
-          online: 0,
-          alarm: 0,
-          offline: 0
-        };
+        console.error('获取设备状态时发生错误:', error)
+        this.resetDeviceStats()
       }
     },
-    
-    // 添加启动定时器方法
-    startStatusTimer() {
-      // 立即获取一次数据
-      this.fetchDeviceStats();
-      
-      // 设置30秒定时器
-      this.statusTimer = setInterval(() => {
-        this.fetchDeviceStats();
-      }, 30000); // 30秒 = 30000毫秒
+    resetDeviceStats() {
+      this.deviceStats = { total: 0, online: 0, alarm: 0, offline: 0 }
     },
-    
-    // 添加停止定时器方法
+    startStatusTimer() {
+      this.fetchDeviceStats()
+      this.statusTimer = setInterval(() => {
+        this.fetchDeviceStats()
+      }, 30000)
+    },
     stopStatusTimer() {
       if (this.statusTimer) {
-        clearInterval(this.statusTimer);
-        this.statusTimer = null;
+        clearInterval(this.statusTimer)
+        this.statusTimer = null
+      }
+    },
+    updateMapLocation(device) {
+      if (device.useMarkLocation === 1 && device.lat && device.lng) {
+        this.center = [device.lng, device.lat]
+        if (this.map) {
+          this.map.clearMap()
+          const marker = new AMap.Marker({ position: [device.lng, device.lat] })
+          this.map.add(marker)
+          this.map.setCenter([device.lng, device.lat])
+        }
       }
     },
     handleDevicesUpdated(devices) {
       if (devices && devices.length > 0) {
-        this.selectedDevice = devices[0];
-        this.selectedDeviceId = devices[0].id;
-        this.fetchDeviceData(devices[0].id);
-        
-        // 如果设备有位置信息，更新地图中心点
-        if (devices[0].useMarkLocation === 1 && devices[0].lat && devices[0].lng) {
-          this.center = [devices[0].lng, devices[0].lat];
-          if (this.map) {
-            // 更新地图标记点
-            this.map.clearMap(); // 清除现有标记
-            const marker = new AMap.Marker({
-              position: [devices[0].lng, devices[0].lat]
-            });
-            this.map.add(marker);
-            this.map.setCenter([devices[0].lng, devices[0].lat]);
-          }
-        }
+        this.selectedDevice = devices[0]
+        this.selectedDeviceId = devices[0].id
+        this.fetchDeviceData(devices[0].id)
+        this.updateMapLocation(devices[0])
       } else {
-        this.selectedDevice = null;
-        this.selectedDeviceId = null;
-        this.deviceData = null;
+        this.selectedDevice = null
+        this.selectedDeviceId = null
+        this.deviceData = null
       }
     },
     handleDeviceSelected(deviceId) {
-      const device = this.findDeviceById(deviceId);
-      this.selectedDevice = device;
-      this.selectedDeviceId = deviceId;
-      this.fetchDeviceData(deviceId);
+      const device = this.findDeviceById(deviceId)
+      this.selectedDevice = device
+      this.selectedDeviceId = deviceId
+      this.fetchDeviceData(deviceId)
     },
     async fetchDeviceData(deviceId) {
-      if (!deviceId) return;
+      if (!deviceId) return
 
-      this.loading = true;
-      this.deviceData = null;
+      this.loading = true
+      this.deviceData = null
 
       try {
-        const response = await fetch(`/senser/deviceData`, {
+        const response = await fetch('/senser/deviceData', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify([deviceId])
-        });
+        })
 
         if (!response.ok) {
-          throw new Error(`请求失败: ${response.status}`);
+          throw new Error(`请求失败: ${response.status}`)
         }
 
-        const result = await response.json();
+        const result = await response.json()
         if (result.code === 1 && result.data && result.data.length > 0) {
-          const deviceRawData = result.data[0];
-
-          const values = {};
-          if (deviceRawData.dataItems && Array.isArray(deviceRawData.dataItems)) {
-            deviceRawData.dataItems.forEach(item => {
-              values[item.functionName] = {
-                value: item.value,
-                unit: item.unit
-              };
-            });
-          }
-
-          this.deviceData = {
-            deviceName: `设备${deviceRawData.deviceId || deviceId}`,
-            status: deviceRawData.status === 1 ? '在线' : '离线',
-            values: values
-          };
+          this.processDeviceData(result.data[0], deviceId)
         } else if (result.code !== 1) {
-          throw new Error(result.msg || '获取设备数据失败');
+          throw new Error(result.msg || '获取设备数据失败')
         } else {
-          console.warn('设备数据为空或格式不正确:', result);
-          this.deviceData = {
-            deviceName: `设备${deviceId}`,
-            status: '未知',
-            values: {}
-          };
+          console.warn('设备数据为空或格式不正确:', result)
+          this.setDefaultDeviceData(deviceId)
         }
       } catch (error) {
-        console.error('获取设备数据错误:', error);
-        this.deviceData = {
-          deviceName: `设备${deviceId}`,
-          status: '未知',
-          values: {}
-        };
+        console.error('获取设备数据错误:', error)
+        this.setDefaultDeviceData(deviceId)
       } finally {
-        this.loading = false;
+        this.loading = false
+      }
+    },
+    processDeviceData(deviceRawData, deviceId) {
+      const values = {}
+      if (deviceRawData.dataItems && Array.isArray(deviceRawData.dataItems)) {
+        deviceRawData.dataItems.forEach(item => {
+          values[item.functionName] = {
+            value: item.value,
+            unit: item.unit
+          }
+        })
+      }
+
+      this.deviceData = {
+        deviceName: `设备${deviceRawData.deviceId || deviceId}`,
+        status: deviceRawData.status === 1 ? '在线' : '离线',
+        values: values
+      }
+    },
+    setDefaultDeviceData(deviceId) {
+      this.deviceData = {
+        deviceName: `设备${deviceId}`,
+        status: '未知',
+        values: {}
       }
     },
     handleCardClick(device, sensorName, valueObj) {
-      console.log('卡片点击:', device, sensorName, valueObj);
-    },
+      console.log('卡片点击:', device, sensorName, valueObj)
+    }
   },
   mounted() {
-    const userStr = localStorage.getItem('user');
+    const userStr = localStorage.getItem('user')
     if (userStr) {
-      this.user = JSON.parse(userStr);
+      this.user = JSON.parse(userStr)
     } else {
-      console.warn('未找到用户信息，可能处于测试模式');
-      this.user.username = '测试用户';
+      console.warn('未找到用户信息，可能处于测试模式')
+      this.user.username = '测试用户'
     }
-    this.updateMenuState(this.$route.path);
     
-    // 启动设备状态定时器
-    this.startStatusTimer();
+    this.updateMenuState(this.$route.path)
+    this.startStatusTimer()
 
-    eventBus.on('device-selected', this.handleDeviceSelected);
-    eventBus.on('devices-updated', this.handleDevicesUpdated);
+    eventBus.on('device-selected', this.handleDeviceSelected)
+    eventBus.on('devices-updated', this.handleDevicesUpdated)
 
     if (this.$route.path === '/') {
       setTimeout(() => {
-        eventBus.emit('select-device', 1);
-      }, 500);
+        eventBus.emit('select-device', 1)
+      }, 500)
     }
   },
   beforeUnmount() {
-    // 清理定时器
-    this.stopStatusTimer();
-    
-    eventBus.off('device-selected', this.handleDeviceSelected);
-    eventBus.off('devices-updated', this.handleDevicesUpdated);
-  },
+    this.stopStatusTimer()
+    eventBus.off('device-selected', this.handleDeviceSelected)
+    eventBus.off('devices-updated', this.handleDevicesUpdated)
+  }
 }
 </script>
 
 <style scoped>
-/* 容器样式 */
 .home-container {
   width: 100%;
   min-height: 100vh;
@@ -440,7 +411,6 @@ export default {
   gap: 8px;
 }
 
-/* 行样式 */
 .home-row {
   width: 100%;
   display: flex;
@@ -448,22 +418,11 @@ export default {
   flex-shrink: 0;
 }
 
-.top-row {
-  height: 90px;
-}
+.top-row { height: 90px; }
+.middle-row { height: 380px; }
+.bottom-row { height: calc(100% - 490px); }
 
-.middle-row {
-  height: 380px;
-}
-
-.bottom-row {
-  height: calc(100% - 490px);
-}
-
-/* 组件占位符样式 */
-.top-row .home-component-placeholder,
-.middle-row .home-component-placeholder,
-.bottom-row .home-component-placeholder.full-width-component {
+.home-component-placeholder {
   background-color: white;
   display: flex;
   align-items: center;
@@ -472,31 +431,16 @@ export default {
   box-sizing: border-box;
 }
 
-/* 中间行组件样式 */
-.middle-row .middle-component-1 {
-  flex: 2;
-}
+.middle-component-1 { flex: 2; }
+.middle-component-2 { flex: 5; }
+.middle-component-3 { flex: 3; }
 
-.middle-row .middle-component-2 {
-  flex: 5;
-}
+.el-vue-amap-container { width: 100%; }
 
-.middle-row .middle-component-3 {
-  flex: 3;
-}
-
-.el-vue-amap-container {
-  width: 100%;
-}
-
-/* 底部行组件样式 */
-.bottom-row .home-component-placeholder.full-width-component {
+.full-width-component {
   height: 100%;
-  display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  border-radius: 4px;
-  box-sizing: border-box;
   width: 100%;
   flex-grow: 1;
   padding: 0;
@@ -506,9 +450,6 @@ export default {
 }
 
 .no-device-message {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
   color: #6c757d;
   font-size: 16px;
   background-color: #ffffff;
@@ -519,15 +460,9 @@ export default {
   box-sizing: border-box;
 }
 
-.bottom-row .full-width-component>.device-block {
-  margin: 0;
-}
+.full-width-component > .device-block { margin: 0; }
+.full-width-component > * { overflow-y: auto; }
 
-.full-width-component>* {
-  overflow-y: auto;
-}
-
-/* 状态卡片样式 */
 .status-card {
   flex: 1;
   background-color: #ffffff;
@@ -541,9 +476,7 @@ export default {
   box-sizing: border-box;
 }
 
-.status-card:last-child {
-  margin-right: 0;
-}
+.status-card:last-child { margin-right: 0; }
 
 .icon-container {
   font-size: 28px;
@@ -571,24 +504,11 @@ export default {
   font-weight: bold;
 }
 
-/* 状态卡片颜色 */
-.total-devices {
-  background-color: #1890ff;
-}
+.total-devices { background-color: #1890ff; }
+.online-devices { background-color: #52c41a; }
+.alarm-devices { background-color: #fa8c16; }
+.offline-devices { background-color: #434343; }
 
-.online-devices {
-  background-color: #52c41a;
-}
-
-.alarm-devices {
-  background-color: #fa8c16;
-}
-
-.offline-devices {
-  background-color: #434343;
-}
-
-/* 地图相关样式 */
 .map-page-container {
   height: 85%;
   position: relative;
@@ -608,12 +528,10 @@ export default {
   border-radius: 4px;
 }
 
-
 .toolbar button:hover {
   background-color: #40a9ff;
 }
 
-/* 确保地图容器内的高德地图组件能够正常显示 */
 .map-page-container .el-amap {
   width: 100%;
   height: 100%;
